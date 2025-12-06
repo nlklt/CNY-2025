@@ -123,6 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ast.cpp" />
     <ClCompile Include="grb.cpp" />
     <ClCompile Include="it.cpp" />
     <ClCompile Include="lexer.cpp" />
@@ -139,6 +140,7 @@
     <ClCompile Include="semantic.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ast.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="grb.h" />
     <ClInclude Include="in.h" />

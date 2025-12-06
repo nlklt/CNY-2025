@@ -53,8 +53,8 @@ namespace Log {
         case LT_RANGE: return          "RANGE";
         case LT_MAIN: return           "MAIN";
         case LT_EQUAL: return          "EQUAL";
-        case LT_UNARY: return             "UNARY";
-        case LT_OPERATION: return             "OPERATION";
+        case LT_OP_UNARY: return             "UNARY";
+        case LT_OP_BINARY: return             "OPERATION";
         case LT_COMMA: return           "COMMA";
         case LT_SEMICOLON: return      "SEMICOLON";
         case LT_LEFTBRACE: return      "LEFTBRACE";

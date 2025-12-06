@@ -99,7 +99,7 @@
 //				}
 //
 //				// --- Операции (деление на 0) ---
-//				case LT_OPERATION:
+//				case LT_OP_BINARY:
 //				{
 //					if (lexE.sign == LT::SIGNATURE::division) // '/'
 //					{

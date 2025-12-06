@@ -44,22 +44,35 @@ int wmain(int argc, wchar_t* argv[]) {
         Log::WriteIdTable(log, idtable);
         Log::WriteLexTable(log, lextable, &idtable);
 
-        //// MFST_TRACE_START
-            MFST::Mfst mfst(lextable, GRB::getGreibach());
+        MFST::Mfst mfst(lextable, GRB::getGreibach());
 
-        bool ok = mfst.start();
+        bool ok = mfst.start(idtable);
         if (ok)
         {
             std::cout << "Синтаксический анализ прошёл успешно." << std::endl;
+
+            mfst.buildTree(idtable);
+
+            if (mfst.tree.toDot("ast.dot"))
+            {
+                std::cout << "Дерево успешно сохранено в файл ast.dot." << std::endl;
+                std::cout << "Для визуализации используйте команду Graphviz." << std::endl;
+            }
+            else
+            {
+                std::cerr << "Ошибка записи в файл ast.dot." << std::endl;
+            }
+
+            std::cout << "\n=== Абстрактное Синтаксическое Дерево (AST) ===" << std::endl;
+            mfst.tree.print(mfst.tree.root, 0);
+            std::cout << "===============================================" << std::endl;
         }
         else
         {
             std::cout << "Синтаксический анализ обнаружил ошибки." << std::endl;
         }
 
-        mfst.savededucation();						//сохранить вывести правила вывода
-
-        //mfst.printrules();							//отладка: вывести правила вывода
+        mfst.printrules();
 
         LT::Entry eof;
         eof.lexema = EOF;
@@ -87,3 +100,28 @@ int wmain(int argc, wchar_t* argv[]) {
     Log::Close(log);
     return 0;
 }
+
+	//int main() {
+	//	for (size_t i = 0; i < 16; i++)
+	//	{
+	//		for (size_t j = 0; j < 16; j++)
+	//		{
+	//			char c = i * 16 + j;
+	//			unsigned char uc = static_cast<unsigned char>(c);
+	//			if (uc >= 'A' && uc <= 'Z' || uc >= 'a' && uc <= 'z' || uc == '_' || uc >= '0' && uc <= '9' ||
+	//				uc >= (unsigned char)'А' && uc <= (unsigned char)'Я' || uc >= (unsigned char)'а' && uc <= (unsigned char)'я' || uc == (unsigned char)'Ё' || uc == (unsigned char)'ё' ||
+	//				uc == '=' || uc == '+' || uc == '-' || uc == '*' || uc == '/' || uc == '~' ||
+	//				uc == '.' || uc == ',' || uc == ';' || uc == ' ' || uc == '\t'|| 
+	//				uc == '(' || uc == ')' || uc == '{' || uc == '}' || uc == '\'' || uc == '"'
+	//				)
+	//				std::cout << "IN::T, ";
+	//			else if (uc == '\n' || uc == '#')
+	//				std::cout << "IN::IN_SEPORATOR, ";
+	//			else if (uc == '\r')
+	//				std::cout << "IN::I, ";
+	//			else
+	//				std::cout << "IN::F, ";
+	//		}
+	//		std::cout << "\\\n";
+	//	}
+	//}

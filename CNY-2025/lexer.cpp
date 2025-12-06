@@ -13,21 +13,6 @@
 
 namespace Lexer
 {
-    /*void BaseToDecimal(char* lexema, int base)
-    {
-        int number = 0;
-        int k;
-        for (int i = 1; lexema[i] != '\0'; i++)
-        {
-            if      (lexema[i] <= '9' && lexema[i] >= '0') k = lexema[i] - '0';
-            else if (lexema[i] >= 'A' && lexema[i] <= 'F') k = lexema[i] - 'A' + 10;
-            else if (lexema[i] >= 'a' && lexema[i] <= 'f') k = lexema[i] - 'a' + 10;
-            else continue;
-            number = base * number + k;
-        }
-        sprintf(lexema, "%d", number);
-    }*/
-
     void lexicalAnalysis(In::IN& in, LT::LexTable& lt, IT::IdTable& it)
     {
         std::map<std::string, char> keywords;
@@ -37,7 +22,7 @@ namespace Lexer
         keywords["string"]    = LT_TYPE;
         keywords["main"]      = LT_MAIN;
         keywords["for"]       = LT_FOR;
-        keywords["fun"]       = LT_FUNCTION;
+        keywords["function"]  = LT_FUNCTION;
         keywords["return"]    = LT_RETURN;
         keywords["print"]     = LT_ID;
         keywords["get_time"]  = LT_ID;
@@ -88,8 +73,8 @@ namespace Lexer
                 if (keywords.count(word)) // ключевое слово
                 {
 
-                    char kw = keywords[word];
-                    char sign = kw;
+                    char kw     = keywords[word];
+                    char sign   = kw;
 
                     if      (word == "int")     { lastTypeToken = IT::IDDATATYPE::INT;   sign = LT::SIGNATURE::t_int; }
                     else if (word == "char")    { lastTypeToken = IT::IDDATATYPE::CHR;   sign = LT::SIGNATURE::t_char; }
@@ -98,16 +83,8 @@ namespace Lexer
 
                     if      (word == "main")     { scopeStack.push_back("main"); }
                     else if (word == "for")      { scopeStack.push_back(std::to_string(scopeScp++)); }
-                    else if (word == "print") {
-                        IT::Entry identry_i(lt.size, word, "std", IT::IDTYPE::C, IT::IDDATATYPE::NONE, "std$print");
-                        IT::Add(it, identry_i);
-                    }
-                    else if (word == "get_time") {
-                        IT::Entry identry_i(lt.size, word, "std", IT::IDTYPE::C, IT::IDDATATYPE::NONE, "std$get_time");
-                        IT::Add(it, identry_i);
-                    }
-                    else if (word == "get_date") {
-                        IT::Entry identry_i(lt.size, word, "std", IT::IDTYPE::C, IT::IDDATATYPE::NONE, "std$get_date");
+                    else if (word == "print" || word == "get_date" || word == "get_time") {
+                        IT::Entry identry_i(lt.size, word, "std", IT::IDTYPE::C, IT::IDDATATYPE::NONE, "std$" + word);
                         IT::Add(it, identry_i);
                     }
 
@@ -123,9 +100,8 @@ namespace Lexer
                     char sign = LT::SIGNATURE::variable;
 
                     // область видимости
-                    std::string fullName;
                     std::string currScope = scopeStack.back();
-
+                    std::string fullName;
                     fullName = currScope + "$" + word;
 
                     if (fullName.length() >= IT_ID_MAXSIZE * 2)
@@ -157,11 +133,6 @@ namespace Lexer
                         IT::IDTYPE decidedType = IT::IDTYPE::V;
                         sign = LT::SIGNATURE::variable;
                         IT::IDDATATYPE decidedDataType = lastTypeToken;
-
-                        if (lastTypeToken == IT::IDDATATYPE::UNDEF)
-                        {
-                            exit(0);
-                        }
 
                         if (afterFunctionKeyword) // функция
                         {
@@ -359,29 +330,29 @@ namespace Lexer
                 case '+':
                     if (i + 1 < in.size && in.text[i + 1] == '+')
                     {
-                        symbol = LT_UNARY;
+                        symbol = LT_OP_UNARY;
                         sign = LT::SIGNATURE::increment;
                         ++i; ++position;
                     }
-                    else symbol = LT_OPERATION;
+                    else symbol = LT_OP_BINARY;
                     sign = LT::SIGNATURE::plus;
                     break;
                 case '-':
                     if (i + 1 < in.size && in.text[i + 1] == '-')
                     {
-                        symbol = LT_UNARY;
+                        symbol = LT_OP_UNARY;
                         sign = LT::SIGNATURE::dicrement;
                         ++i; ++position;
                     }
-                    else symbol = LT_OPERATION;
+                    else symbol = LT_OP_BINARY;
                     sign = LT::SIGNATURE::minus;
                     break;
                 case '*':
-                    symbol = LT_OPERATION;
+                    symbol = LT_OP_BINARY;
                     sign = LT::SIGNATURE::multiplication;
                     break;
                 case '/':
-                    symbol  = LT_OPERATION;
+                    symbol  = LT_OP_BINARY;
                     sign    = LT::SIGNATURE::division;
                     break;
                 case ',': symbol = LT_COMMA; break;
@@ -389,7 +360,7 @@ namespace Lexer
                     symbol = LT_SEMICOLON;
                     lastTypeToken = IT::IDDATATYPE::UNDEF;
                     break;
-                case '~': symbol = LT_UNARY; sign = LT::SIGNATURE::inversion; break;
+                case '~': symbol = LT_OP_UNARY; sign = LT::SIGNATURE::inversion; break;
                 case '=': symbol = LT_EQUAL; break;
                 default:
                     ERROR_THROW(205, line, position);

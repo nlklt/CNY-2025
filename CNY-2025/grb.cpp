@@ -114,4 +114,31 @@ namespace GRB
 		}
 		return -1;
 	};
+
+	char* Rule::Chain::getCChain(char* b)
+	{
+		for (int i = 0; i < nt.size(); i++)
+		{
+			b[i] = Chain::alphabet_to_char(nt[i]);
+		}
+		b[nt.size()] = 0x00;
+		return b;
+	}
+
+	char* Rule::getCRule(char* b, short nchain)
+	{
+		if (nchain >= 0 && nchain < chains.size())
+		{
+			char bchain[200];
+			b[0] = Chain::alphabet_to_char(nn);
+			b[1] = '-';
+			b[2] = '>';
+			b[3] = 0x00;
+			chains[nchain].getCChain(bchain);
+			sprintf_s(b, 205, bchain);
+			return b;
+		}
+		b[0] = 0x00;
+		return b;
+	};
 }

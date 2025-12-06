@@ -46,7 +46,7 @@ namespace Polis
 				result.push(lextable.table[i]);
 				break;
 
-			case LT_OPERATION: // Лексема - **оператор** (+, -, *, / и т.д.)
+			case LT_OP_BINARY: // Лексема - **оператор** (+, -, *, / и т.д.)
 				// Если стек пуст или на вершине стека левая скобка, просто помещаем оператор в стек
 				if (stk.empty() || stk.top().lexema == LT_LEFTHESIS)
 					stk.push(lextable.table[i]);

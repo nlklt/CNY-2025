@@ -1,5 +1,5 @@
-# ----------------- Глобальные переменные -----------------
-int G1 = 1;
+int o_1 = 1;# ----------------- Глобальные переменные -----------------
+int _G_1_ = 1;
 char G2 = 'A';
 string G3 = "Global str";
 int OCt = 0o123;
@@ -7,13 +7,13 @@ int OCt = 0o123;
 int vvlllooooonnngggiiiddd = 100;
 
 # ----------------- Функции -----------------
-fun int sum(int a, int b) {
+function int sum(int a, int b) {
 	# print, get_time, get_date - стандартные имена
 	print("Enter sum");
 	return (a + b);
 }
 
-fun char get_char(int x) {
+function char get_char(int x) {
 	# Унарные: инкремент и инверсия
 	x++;
 	int inv = ~x; 

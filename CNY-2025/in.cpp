@@ -12,10 +12,10 @@ namespace In
     {
         IN in;
 
-        in.size = 0;
-        in.lines = 1;
-        in.ignor = 0;
-        in.text = nullptr;
+        in.size     = 0;
+        in.lines    = 1;
+        in.ignor    = 0;
+        in.text     = nullptr;
 
         std::ifstream file(infile);
 
@@ -27,7 +27,6 @@ namespace In
         {
             std::vector <unsigned char> text_buffer;
 
-            int line = 1;
             int position = 0;
 
             char c;
@@ -45,7 +44,7 @@ namespace In
                     break;
 
                 case IN::F:
-                    ERROR_THROW_IN(111, line, position);
+                    ERROR_THROW_IN(111, in.lines, position);
                     break;
 
                 case IN::I:
@@ -64,7 +63,6 @@ namespace In
                 
                 if (uc == IN_CODE_ENDL)
                 {
-                    ++line;
                     in.lines++;
                     position = 0;
                 }

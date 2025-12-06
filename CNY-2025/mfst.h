@@ -1,6 +1,7 @@
-#include "Error.h"
-#include "LT.h"
-#include "GRB.h"
+#include "error.h"
+#include "lt.h"
+#include "grb.h"
+#include "ast.h"
 
 #include <stack>
 #include <iostream>
@@ -77,6 +78,7 @@ namespace MFST
 		LT::LexTable* lex;		//результат работы лексического анализатора
 		MFSTSTSTACK st;			//стек автомата
 		MSTSTSTATE storestate;	//стек для сохранения состояний
+		Ast::Tree tree;
 
 		Mfst();
 		Mfst(LT::LexTable& plex, GRB::Greibach pgrebach);
@@ -90,9 +92,11 @@ namespace MFST
 		//Выполнить шаг автомата
 		RC_STEP step();
 		//Запустить автомат
-		bool start();
+		bool start(IT::IdTable idtable);
 		//Сохранение диагностики работы МП-автомата
 		bool savediagnosis(RC_STEP pprc_step);
+		// Вывод использованных правил
+		void printrules();
 
 		/*ВЫВОД*/
 		struct Deducation
@@ -110,6 +114,7 @@ namespace MFST
 
 		//Сохранить дерево вывода
 		bool savededucation();
+		// Преобразует линейную историю разбора (storestate) в иерархическое дерево
+		bool buildTree(IT::IdTable& idtable);
 	};
 }
-

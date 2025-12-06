@@ -15,8 +15,8 @@
 #define LT_LITERAL		'l'
 
 #define LT_EQUAL		'='
-#define LT_UNARY        'u'
-#define LT_OPERATION    'v'
+#define LT_OP_UNARY        'u'
+#define LT_OP_BINARY    'v'
 
 #define LT_RANGE        '.'
 #define LT_COMMA    	','

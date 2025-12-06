@@ -24,6 +24,12 @@ namespace GRB
 			: nn(pnn), iderror(piderror), chains(pchains) {
 		}
 
+		//Получить правило в виде N->цепочка (для печати)
+		char* getCRule(
+			char* b,	//буфер
+			short nchain//номер цепочки(правой части) в правиле
+		);
+
 		//Получить следующую за j подходящую цепочку? вернуть её номер : -1
 		short getNextChain(
 			GRBALPHABET t,			//первый символ цепочки
@@ -44,15 +50,21 @@ namespace GRB
 			: nt(symbols) {
 		};
 
-		//Терминал > 0
+		//Получить правую сторону правила
+		char* getCChain(char* b);
+
+		// Терминал > 0
 		static GRBALPHABET T(char t) { return GRBALPHABET(t); }
-		//Не терминал < 0
+		// Не терминал < 0
 		static GRBALPHABET N(char n) { return -GRBALPHABET(n); }
 
-		//Терминал?
+		// Терминал?
 		static bool isT(GRBALPHABET s) { return s > 0; }
-		//Не терминал?
+		// Не терминал?
 		static bool isN(GRBALPHABET s) { return !isT(s); };
+
+		// GRBALPHABET -> char
+		static char alphabet_to_char(GRBALPHABET s) { return isT(s) ? char(s) : char(-s); };
 	};
 
 	/*ГРАМАТИКА ГРЕЙБАХА*/

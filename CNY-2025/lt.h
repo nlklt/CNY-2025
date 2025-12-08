@@ -15,7 +15,7 @@
 #define LT_LITERAL		'l'
 
 #define LT_EQUAL		'='
-#define LT_OP_UNARY        'u'
+#define LT_OP_UNARY     'u'
 #define LT_OP_BINARY    'v'
 
 #define LT_RANGE        '.'
@@ -24,7 +24,7 @@
 #define LT_LEFTBRACE	'{'
 #define LT_RIGHTBRACE	'}'
 #define LT_LEFTHESIS	'('
-#define LT_RIGHTHESIS  ')'
+#define LT_RIGHTHESIS   ')'
 
 //таблица лексем
 namespace LT {

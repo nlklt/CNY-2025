@@ -1,16 +1,12 @@
-int o_1 = 1;# ----------------- Глобальные переменные -----------------
-int _G_1_ = 1;
+int G1 = 1;
 char G2 = 'A';
 string G3 = "Global str";
 int OCt = 0o123;
-# Длинный идентификатор (тест обрезания)
-int vvlllooooonnngggiiiddd = 100;
 
-# ----------------- Функции -----------------
 function int sum(int a, int b) {
 	# print, get_time, get_date - стандартные имена
 	print("Enter sum");
-	return (a + b);
+	return a + b;
 }
 
 function char get_char(int x) {
@@ -20,35 +16,25 @@ function char get_char(int x) {
 	return 'Y';
 }
 
-# ----------------- main -----------------
 int main() {
-	# Локальные объявления
 	int x = 10;
 	string S = "Тест кириллицы";
 	int LMin = 0;
 	
-	# Операторы: ++, --, *, /, =
 	x = sum(x, G1) * 2 / 1;
 	x--;
 	
-	# Цикл for с диапазоном
 	for int i = 1..3 {
-		int x = i; # Переопределение локальной переменной
+		int x = i;
 		LMin = LMin + x;
 	}
 
-	# Вызов встроенных функций
 	string T = get_time();
 	string D = get_date();
 	
-	# Работа с длинным глобальным идентификатором
-	vvlllooooonnngggiiiddd = vvlllooooonnngggiiiddd + 1;
-	
-	# Короткие идентификаторы и символ
 	char Sym = get_char(LMin);
 	print(Sym);
 
-	# Пустая строка и символьный литерал '0'
 	string E = "";
 	char Zero = '0';
 	

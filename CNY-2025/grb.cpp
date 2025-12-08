@@ -28,14 +28,14 @@ namespace GRB
 					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
 
 					{ TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
-					{ TS('i'), TS('='), NS('E'), TS(';') },
+					{ TS('}')},
 
 					{ TS('i'), NS('W'), TS(';'), NS('N') },
 					{ TS('i'), NS('W'), TS(';'), NS('N') },
 					{ TS('i'), TS('u'), TS(';'), NS('N') },
 					{ TS('u'), TS('i'), TS(';'), NS('N') },
 					{ TS('i'), TS('u'), TS(';'), NS('N') },
-					{ TS('c'), TS('t'), TS('i'), TS('='), NS('E'), TS('.'), NS('E'), TS('{'), NS('N'), TS('}'), NS('N')},
+					{ TS('c'), TS('t'), TS('i'), TS('='), NS('E'), TS('.'), NS('E'), TS('{'), NS('N'), NS('N')},
 					{ TS('r'), NS('E'), TS(';'), NS('N') },
 					{ TS('r'), NS('E'), TS(';') }
 			}),

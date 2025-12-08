@@ -83,15 +83,20 @@ namespace Lexer
 
                     if      (word == "main")     { scopeStack.push_back("main"); }
                     else if (word == "for")      { scopeStack.push_back(std::to_string(scopeScp++)); }
-                    else if (word == "print" || word == "get_date" || word == "get_time") {
-                        IT::Entry identry_i(lt.size, word, "std", IT::IDTYPE::C, IT::IDDATATYPE::NONE, "std$" + word);
-                        IT::Add(it, identry_i);
-                    }
-
+                    
                     if (kw == LT_FUNCTION) afterFunctionKeyword = true;
 
-                    LT::Entry kwentry_l(kw, sign, line, ++tn, LT_NULLIDX);
+                    if      (word == "return" || word == "print" || word == "get_date" || word == "get_time")   {
+                        IT::Entry identry_i(lt.size, word, scopeStack.back(), IT::IDTYPE::C, IT::IDDATATYPE::STR, scopeStack.back());
+                        IT::Add(it, identry_i);
+                    LT::Entry kwentry_l(kw, sign, line, ++tn, it.size - 1);
                     LT::Add(lt, kwentry_l);
+                    }
+                    else {
+                        LT::Entry kwentry_l(kw, sign, line, ++tn, LT_NULLIDX);
+                        LT::Add(lt, kwentry_l);
+                    }
+
                     continue;
                 }
                 else // идентификатор

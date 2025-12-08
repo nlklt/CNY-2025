@@ -170,7 +170,7 @@ namespace MFST
 				GRBALPHABET symbol = chain.nt[k];
 				Ast::Node* child = nullptr;
 
-				if (GRB::Rule::Chain::isT(symbol)) 
+				if (GRB::Rule::Chain::isT(symbol))
 				{
 					char val = GRB::Rule::Chain::alphabet_to_char(symbol);
 					std::string symbolValue(1, val);
@@ -179,17 +179,8 @@ namespace MFST
 					if (i == 0) lexIdx = state.lenta_position;
 
 					child = new Ast::Node(lexIdx, symbolValue);
-
-					if (lexIdx != -1 && lexIdx < lex->size) {
-						LT::Entry entry = lex->table[lexIdx];
-						if ((entry.lexema == LT_ID || entry.lexema == LT_LITERAL) && entry.idxIT != LT_NULLIDX) {
-							child->name = idtable.table[entry.idxIT].id;
-						}
-						if (entry.idxIT != LT_NULLIDX)
-							child->dataType = idtable.table[entry.idxIT].iddatatype;
-					}
 				}
-				else 
+				else
 				{
 					char val = GRB::Rule::Chain::alphabet_to_char(symbol);
 					std::string sVal(1, val);

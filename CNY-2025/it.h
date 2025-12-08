@@ -37,6 +37,7 @@ namespace IT {
             std::vector<IDDATATYPE> types;
         } params;
         std::string fullName = "-";
+        bool isDefined = false;
 
         Entry() = default;
 

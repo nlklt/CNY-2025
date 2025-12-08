@@ -78,11 +78,13 @@ int wmain(int argc, wchar_t* argv[]) {
         eof.lexema = EOF;
         LT::Add(lextable, eof);
 
-        // Semantic::semanticAnalysis(lextable, idtable);
-        // std::cout << "\nСемантический анализ завершен без ошибок";
+        SM::semanticAnalysis(lextable, idtable);
 
-        // Polis::polishNotation(0, lextable, idtable);
-        // sintaxAnaliz.printRules(log.stream);
+        std::cout << "Успешное завершение.";
+
+        Log::WriteLex(log, lextable, &idtable);
+        Log::WriteIdTable(log, idtable);
+        Log::WriteLexTable(log, lextable, &idtable);
 
         Log::WriteLine(log, (char*)"Успешное завершение.", "");
         Log::Close(log);

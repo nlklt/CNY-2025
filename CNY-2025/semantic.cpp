@@ -1,229 +1,311 @@
-//#include "semantic.h"
-//#include "error.h"
-//#include <iostream>
-//
-//using namespace std;
-//
-//namespace Semantic
-//{
-//	// Вспомогательная функция для получения типа данных из ID или Литерала
-//	IT::IDDATATYPE getDataType(LT::Entry& lex, IT::IdTable& idtable)
+п»ї#include "semantic.h"
+#include "polis.h"
+#include "error.h"
+
+#include <stack>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+using namespace std;
+
+//	namespace SM
 //	{
-//		if (lex.lexema == LT_LITERAL || lex.lexema == LT_ID)
-//		{
-//			return idtable.table[lex.idxIT].iddatatype;
-//		}
-//		return IT::IDDATATYPE::UNDEF;
-//	}
-//		void semanticAnalysis(LT::LexTable& lextable, IT::IdTable& idtable)
-//		{
-//			// 1. main
-//			bool hasMain = false;
-//			for (int i = 0; i < idtable.size; i++)
-//			{
-//				if (lextable.table[i].lexema == LT_MAIN)
-//				{
-//					hasMain = true;
-//					break;
+//		IT::IDDATATYPE getType(int i, LT::LexTable& lextable, IT::IdTable& idtable) {
+//			switch (lextable.table[i].sign) {
+//			case (LT::SIGNATURE::t_int): return IT::IDDATATYPE::INT;
+//			case (LT::SIGNATURE::t_char): return IT::IDDATATYPE::CHR;
+//			case (LT::SIGNATURE::t_string): return IT::IDDATATYPE::STR;
+//			default :
+//				if (lextable.table[i].idxIT != IT_NULLIDX) {
+//					return (idtable.table[lextable.table[i].idxIT].iddatatype);
 //				}
 //			}
-//			if (!hasMain) ERROR_THROW(706);
-//
-//			// контекст
-//			IT::IDDATATYPE currentFuncType = IT::IDDATATYPE::UNDEF;
-//			bool insideFunction = false;
-//			int braceDepth = 0;
-//
-//			// Проход по таблице лексем
+//		}
+//		void semanticAnalysis(LT::LexTable& lextable, IT::IdTable& idtable)
+//		{
+//			IT::IDDATATYPE currIdType = IT::IDDATATYPE::UNDEF;
+//			IT::IDDATATYPE currReturnType = IT::IDDATATYPE::NONE;
 //			for (int i = 0; i < lextable.size; i++)
 //			{
-//				LT::Entry& lexE = lextable.table[i];
-//				IT::Entry* idE = (lexE.idxIT != LT_NULLIDX) ? &idtable.table[lexE.idxIT] : nullptr;
-//
-//				switch (lexE.lexema)
-//				{
-//					// объявление ф-ии: fti (ti, ti) { }
-//				case LT_FUNCTION:
-//				{
-//					if (i + 2 < lextable.size)
-//					{
-//						LT::Entry& functionId = lextable.table[i + 2];
-//						if (functionId.lexema == LT_ID)
-//						{
-//							currentFuncType = idtable.table[functionId.idxIT].iddatatype;
-//							insideFunction = true;
-//						}
-//					}
-//					break;
-//				}
-//
-//				case LT_LEFTBRACE:
-//				{
-//					if (insideFunction) braceDepth++;
-//					break;
-//				}
-//				case LT_RIGHTBRACE:
-//				{
-//					if (insideFunction)
-//					{
-//						braceDepth--;
-//						if (braceDepth == 0)
-//						{
-//							insideFunction = false;
-//							currentFuncType = IT::IDDATATYPE::UNDEF;
-//						}
-//					}
-//					break;
-//				}
-//
-//				// цикл: c ti = l.l { }
-//				/*
-//				for char i
-//				'0'..9
-//				3..1
-//				*/
-//				case LT_FOR:
-//				{
-//					LT::Entry& iterator = lexE; // итератор
-//
-//					// 2. Проверяем границы диапазона
-//					IT::IDDATATYPE startType = getDataType(iterator, idtable);
-//					IT::IDDATATYPE endType = getDataType(iterator, idtable);
-//
-//					// Ожидаем INT
-//					if (startType != IT::IDDATATYPE::INT || endType != IT::IDDATATYPE::INT)
-//					{
-//						ERROR_THROW_IN(708, lexE.sn, -1); // Ошибка: границы цикла должны быть целочисленными
-//					}
-//					break;
-//				}
-//
-//				// --- Операции (деление на 0) ---
-//				case LT_OP_BINARY:
-//				{
-//					if (lexE.sign == LT::SIGNATURE::division) // '/'
-//					{
-//						if (i + 1 < lextable.size)
-//						{
-//							LT::Entry& nextLex = lextable.table[i + 1];
-//							if (nextLex.lexema == LT_LITERAL)
-//							{
-//								IT::Entry& lit = idtable.table[nextLex.idxIT];
-//								// Проверка на 0
-//								if (lit.iddatatype == IT::IDDATATYPE::INT && lit.value.vint == 0)
-//									ERROR_THROW_IN(700, nextLex.sn, nextLex.tn);
-//							}
-//						}
-//					}
-//					break;
-//				}
-//
-//				// --- Присваивание ---
-//				case LT_EQUAL:
-//				{
-//					// Слева должен быть ID (lexE[i-1])
-//					if (i > 0 && lextable.table[i - 1].lexema == LT_ID)
-//					{
-//						IT::IDDATATYPE targetType = idtable.table[lextable.table[i - 1].idxIT].iddatatype;
-//
-//						// Проходим вправо до точки с запятой
-//						bool ignore = false;
-//						for (int k = i + 1; k < lextable.size; k++)
-//						{
-//							LT::Entry& rhsLex = lextable.table[k];
-//							if (rhsLex.lexema == LT_SEMICOLON) break;
-//
-//							// Пропуск параметров функций внутри выражения
-//							if (rhsLex.lexema == LT_LEFTHESIS) { ignore = true; continue; }
-//							if (rhsLex.lexema == LT_RIGHTHESIS) { ignore = false; continue; }
-//							if (ignore) continue;
-//
-//							// Проверка типов операндов
-//							IT::IDDATATYPE rhsType = getDataType(rhsLex, idtable);
-//							if (rhsType != IT::UNDEF)
-//							{
-//								// Если справа функция - проверяем её возвращаемый тип (он записан в iddatatype функции)
-//								if (rhsType != targetType)
-//								{
-//									// Если target=INT, а rhs=CHAR (или наоборот) - допустимо? 
-//									// Если строгая типизация - ошибка.
-//									ERROR_THROW_IN(701, rhsLex.sn, -1);
-//								}
-//							}
-//						}
-//					}
-//					break;
-//				}
-//
-//				// --- Return ---
-//				case LT_RETURN:
-//				{
-//					// Проверяем совместимость возвращаемого значения с типом функции
-//					int nextIdx = i + 1;
-//					// Пропуск скобки, если return (x);
-//					if (nextIdx < lextable.size && lextable.table[nextIdx].lexema == LT_LEFTHESIS) nextIdx++;
-//
-//					if (nextIdx < lextable.size)
-//					{
-//						LT::Entry& retVal = lextable.table[nextIdx];
-//						IT::IDDATATYPE retType = getDataType(retVal, idtable);
-//
-//						if (retType != IT::UNDEF && currentFuncType != IT::UNDEF)
-//						{
-//							if (retType != currentFuncType)
-//							{
-//								ERROR_THROW_IN(703, lexE.sn, -1);
-//							}
-//						}
-//					}
-//					break;
-//				}
-//
-//				// --- Вызов функции ---
+//				switch (lextable.table[i].lexema) {
+//					if (lextable.table[i].idxIT != IT_NULLIDX) {
 //				case LT_ID:
-//				{
-//					// Проверяем паттерн: ID (
-//					if (i + 1 < lextable.size && lextable.table[i + 1].lexema == LT_LEFTHESIS)
-//					{
-//						// Это вызов функции?
-//						if (idE && idE->idtype == IT::IDTYPE::F)
-//						{
-//							int paramIdx = 0;
-//							int k = i + 2; // Первый параметр
-//
-//							while (k < lextable.size)
-//							{
-//								LT::Entry& pLex = lextable.table[k];
-//								if (pLex.lexema == LT_RIGHTHESIS) break;
-//
-//								// Если параметр - ID или Literal
-//								if (pLex.lexema == LT_ID || pLex.lexema == LT_LITERAL)
-//
-///*
-//
-//*/
-//								{
-//									paramIdx++;
-//									if (paramIdx > idE->params.count)
-//										ERROR_THROW_IN(705, lexE.sn, -1); // Много параметров
-//
-//									IT::IDDATATYPE paramType = getDataType(pLex, idtable);
-//									IT::IDDATATYPE expectedType = idE->params.types[paramIdx - 1];
-//
-//									if (paramType != expectedType)
-//										ERROR_THROW_IN(704, pLex.sn, pLex.tn); // Неверный тип
-//								}
-//								k++;
+//					// РѕР±СЉСЏРІР»РµРЅРёРµ / РѕРїСЂРµРґРµР»РµРЅРёРµ РїРµСЂРµРјРµРЅРЅРѕР№
+//					if (currIdType != IT::IDDATATYPE::UNDEF) {
+//						idtable.table[lextable.table[i].idxIT].isDefined = true;
+//					}
+//					// РїСЂРѕРІРµСЂРєР° РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂР°
+//					else if (idtable.table[lextable.table[i].idxIT].isDefined == false) {
+//						cerr << "РќРµРѕР±СЉСЏРІР»РµРЅРЅС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ\n";
+//					}
+//					// РѕР±СЉСЏРІР»РµРЅРёРµ С„СѓРЅРєС†РёРё
+//					if (idtable.table[lextable.table[i].idxIT].idtype == IT::IDTYPE::F) {
+//						// polishNotation function int fnm(int a, int b, int c) -> ft i(РїР°СЂР°РјРµС‚СЂ)i(РїР°СЂР°РјРµС‚СЂ)i(РїР°СЂР°РјРµС‚СЂ)@3i(С„СѓРЅРєС†РёСЏ)
+//						for (int k = i + 1; k < lextable.size; k++) {
+//							if (lextable.table[k].lexema == LT_LEFTHESIS) {
+//								continue;
 //							}
-//
-//							if (paramIdx < idE->params.count)
-//								ERROR_THROW_IN(705, lexE.sn, -1); // Мало параметров
+//							if (lextable.table[k].lexema == LT_ID) {
+//								
+//							}
+//							else {
+//								cerr << "!!!!!!!!!!!!!_1114_!!!!!!!!!!!!!\n";
+//							}
+//							if (lextable.table[k].lexema == LT_FUNCTION || lextable.table[k].lexema == LT_MAIN) break;
 //						}
 //					}
 //					break;
-//				}
-//
-//				} // switch
-//			} // for
-//		}
-//	
+//					}
+//					else {
+//				case LT_TYPE:
+//					currIdType = getType(i, lextable, idtable);
+//				case LT_FUNCTION:
+//					currReturnType = getType(i + 1, lextable, idtable);
+//				case LT_RETURN:
+//					// polishNotation return x; -> r x; | return (x / 5); -> r x(РѕРїРµСЂР°РЅРґ)5(РѕРїРµСЂР°РЅРґ)/(РґРµР№СЃС‚РІРёРµ); 
+//					while (lextable.table[++i].lexema != LT_SEMICOLON) {
+//						if (lextable.table[i].idxIT != IT_NULLIDX) {
+//							if (getType(i, lextable, idtable) == currReturnType) {
+//								continue;
+//							}
+//							else
+//							{
+//								ERROR_THROW(777, lextable.table[i].sn, lextable.table[i].tn);
+//							}
+//						}
+//					}
+//				case LT_EQUAL:
+//					// polishNotation x = (a + 4); -> x = i(РѕРїРµСЂР°РЅРґ)i(РѕРїРµСЂР°РЅРґ)+(РґРµР№СЃС‚РІРёРµ);
+
+// semantic.cpp
+#include "semantic.h"
+#include "polis.h"
+// #include "error.h"  // Р±РѕР»СЊС€Рµ РЅРµ РёСЃРїРѕР»СЊР·СѓРµРј ERROR_THROW
+
+#include <stack>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iostream>
+
+#include "semantic.h"
+#include "polis.h"
+#include <stack>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iostream>
+
+using namespace std;
+
+namespace SM
+{
+    using LTEntry = LT::Entry;
+    using ITEntry = IT::Entry;
+
+    static void reportError(int code, int sn, int tn, const string& message)
+    {
+        cerr << "Semantic error [" << code << "] at sn=" << sn << " tn=" << tn << ": " << message << '\n';
+    }
+
+    static bool areTypesCompatible(IT::IDDATATYPE target, IT::IDDATATYPE source)
+    {
+        if (target == source) return true;
+        
+        return false;
+    }
+
+    static IT::IDDATATYPE getTypeFromLexEntry(const LTEntry& lex, IT::IdTable& idtable)
+    {
+        if (lex.idxIT != IT_NULLIDX && lex.idxIT >= 0 && lex.idxIT < (int)idtable.size)
+        {
+            return idtable.table[lex.idxIT].iddatatype;
+        }
+        return IT::IDDATATYPE::UNDEF;
+    }
+
+    static vector<IT::IDDATATYPE> getFunctionParamTypes(int funcIdx, IT::IdTable& idtable)
+    {
+        vector<IT::IDDATATYPE> res;
+        if (funcIdx < 0 || funcIdx >= (int)idtable.size) return res;
+        string funcName = idtable.table[funcIdx].id;
+        for (int k = 0; k < (int)idtable.size; ++k)
+        {
+            const ITEntry& e = idtable.table[k];
+            if (e.idtype == IT::IDTYPE::P && e.scope == funcName)
+            {
+                res.push_back(e.iddatatype);
+            }
+        }
+        return res;
+    }
+
+    static IT::IDDATATYPE evaluateRPN(int pos, LT::LexTable& lextable, IT::IdTable& idtable)
+    {
+        vector<LTEntry> rpn;
+        for (int j = pos; j < lextable.size; ++j)
+        {
+            char lx = lextable.table[j].lexema;
+            if (lx == ';' || lx == '#') break;
+            rpn.push_back(lextable.table[j]);
+        }
+
+        stack<IT::IDDATATYPE> st;
+        for (size_t i = 0; i < rpn.size(); ++i)
+        {
+            LTEntry& lex = rpn[i];
+            char lx = lex.lexema;
+
+            if (lx == 'i' || lx == 'l') // РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РёР»Рё Р›РёС‚РµСЂР°Р»
+            {
+                IT::IDDATATYPE t = getTypeFromLexEntry(lex, idtable);
+                st.push(t);
+                continue;
+            }
+            if (lx == '@')
+            {
+                if (i + 1 >= rpn.size()) return IT::IDDATATYPE::UNDEF;
+                LTEntry funcLex = rpn[i + 1];
+                int funcIdx = funcLex.idxIT;
+
+                IT::IDDATATYPE retType = IT::IDDATATYPE::UNDEF;
+                if (funcIdx != IT_NULLIDX) {
+                    retType = idtable.table[funcIdx].iddatatype;
+                    }
+                st.push(retType);
+                ++i;
+                continue;
+            }
+            if (strchr("+-*/", lx)) // РћРїРµСЂР°С‚РѕСЂС‹
+            {
+                if (st.size() < 2) return IT::IDDATATYPE::UNDEF;
+                IT::IDDATATYPE r = st.top(); st.pop();
+                IT::IDDATATYPE l = st.top(); st.pop();
+                // Р›РѕРіРёРєР° С‚РёРїРѕРІ РѕРїРµСЂР°С†РёР№
+                st.push(IT::IDDATATYPE::INT);
+            }
+        }
+        return st.empty() ? IT::IDDATATYPE::UNDEF : st.top();
+    }
+
+    void semanticAnalysis(LT::LexTable& lextable, IT::IdTable& idtable)
+    {
+        vector<int> funcStack;
+
+        for (int i = 0; i < lextable.size; ++i)
+        {
+            LTEntry& lex = lextable.table[i];
+            char lx = lex.lexema;
+
+            if (lx == 'f') {
+                if (lextable.table[i + 2].idxIT != IT_NULLIDX) {
+                    int idx = lextable.table[i + 2].idxIT;
+                    idtable.table[idx].params.types = getFunctionParamTypes(idx, idtable);
+                    idtable.table[idx].params.count = idtable.table[idx].params.types.size();
+                    if (idtable.table[idx].idtype == IT::IDTYPE::F) {
+                        int foundFuncIdx = idx;
+                        funcStack.push_back(foundFuncIdx);
+                        break;
+                    }
+                }
+            }
+            if (lx == '{')
+            {
+                int foundFuncIdx = -1;
+                for (int b = i - 1; b >= 0 && (i - b) < 5; --b) {
+                    if (lextable.table[b].lexema == 'm') {
+                        funcStack.push_back(-1);
+                        break;
+                    }
+                    if (lextable.table[b].idxIT != IT_NULLIDX) {
+                        int idx = lextable.table[b].idxIT;
+                        if (idtable.table[idx].idtype == IT::IDTYPE::F) {
+                            foundFuncIdx = idx;
+                            funcStack.push_back(foundFuncIdx);
+                            break;
+                        }
+                    }
+                    if (lextable.table[b].lexema == LT_FOR) {
+                        funcStack.push_back(1);
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // --- Р’Р«РҐРћР” РР— Р¤РЈРќРљР¦РР ---
+            if (lx == '}')
+            {
+                if (!funcStack.empty()) funcStack.pop_back();
+                continue;
+            }
+
+            // --- РџР РРЎР’РђРР’РђРќРР• / РРќРР¦РРђР›РР—РђР¦РРЇ ---
+            if (lx == '=')
+            {
+                if (i - 1 >= 0 && lextable.table[i - 1].idxIT != IT_NULLIDX)
+                {
+                    int lhsIdx = lextable.table[i - 1].idxIT;
+                    ITEntry& lhsEntry = idtable.table[lhsIdx];
+
+                    // FIX: РџСЂРѕРІРµСЂСЏРµРј, СЏРІР»СЏРµС‚СЃСЏ Р»Рё СЌС‚Рѕ РёРЅРёС†РёР°Р»РёР·Р°С†РёРµР№ (РїРµСЂРµРґ РїРµСЂРµРјРµРЅРЅРѕР№ СЃС‚РѕРёС‚ С‚РёРї 't')
+                    bool isDeclaration = (i - 2 >= 0 && lextable.table[i - 2].lexema == 't');
+
+                    // РћС€РёР±РєСѓ РєРёРґР°РµРј С‚РѕР»СЊРєРѕ РµСЃР»Рё СЌС‚Рѕ РќР• РґРµРєР»Р°СЂР°С†РёСЏ Рё РїРµСЂРµРјРµРЅРЅР°СЏ РќР• РѕРїСЂРµРґРµР»РµРЅР°
+                    if (!isDeclaration && !lhsEntry.isDefined && lhsEntry.idtype == IT::IDTYPE::V) {
+                        reportError(777, lextable.table[i - 1].sn, lextable.table[i - 1].tn, "РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ РїРµСЂРµРјРµРЅРЅРѕР№ РґРѕ РѕРїСЂРµРґРµР»РµРЅРёСЏ/РёРЅРёС†РёР°Р»РёР·Р°С†РёРё.");
+                    }
+
+                    // Р’С‹С‡РёСЃР»СЏРµРј РІС‹СЂР°Р¶РµРЅРёРµ СЃРїСЂР°РІР°
+                    int exprPos = i + 1;
+                    PN::polishNotation(exprPos, lextable, idtable);
+                    IT::IDDATATYPE exprType = evaluateRPN(exprPos, lextable, idtable);
+
+                    if (exprType != IT::IDDATATYPE::UNDEF) {
+                        if (!areTypesCompatible(lhsEntry.iddatatype, exprType)) {
+                            reportError(777, lex.sn, lex.tn, "РќРµСЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ С‚РёРїРѕРІ РїСЂРё РїСЂРёСЃРІР°РёРІР°РЅРёРё.");
+                        }
+                    }
+
+                    // РџРѕРјРµС‡Р°РµРј РєР°Рє РѕРїСЂРµРґРµР»РµРЅРЅСѓСЋ РџРћРЎР›Р• РїСЂРёСЃРІР°РёРІР°РЅРёСЏ
+                    lhsEntry.isDefined = true;
+                }
+                continue;
+            }
+
+            // --- RETURN ---
+            if (lx == 'r')
+            {
+                if (funcStack.empty()) {
+                    reportError(777, lex.sn, lex.tn, "return РІРЅРµ С„СѓРЅРєС†РёРё.");
+                    continue;
+                }
+                // РџСЂРѕРІРµСЂРєСѓ С‚РёРїР° РІРѕР·РІСЂР°С‚Р° РјРѕР¶РЅРѕ РґРµР»Р°С‚СЊ С‚СѓС‚
+                continue;
+            }
+
+            // --- РРЎРџРћР›Р¬Р—РћР’РђРќРР• РџР•Р Р•РњР•РќРќРћР™ ---
+            if (lx == 'i' && lex.idxIT != IT_NULLIDX)
+            {
+                int id = lex.idxIT;
+                ITEntry& e = idtable.table[id];
+
+                if (e.idtype == IT::IDTYPE::V) {
+                    // FIX: РРіРЅРѕСЂРёСЂСѓРµРј РїСЂРѕРІРµСЂРєСѓ, РµСЃР»Рё:
+                    // 1. Р­С‚Рѕ РјРµСЃС‚Рѕ РґРµРєР»Р°СЂР°С†РёРё (РїРµСЂРµРґ ID СЃС‚РѕРёС‚ С‚РёРї 't')
+                    // 2. Р­С‚Рѕ Р»РµРІР°СЏ С‡Р°СЃС‚СЊ РїСЂРёСЃРІР°РёРІР°РЅРёСЏ (РїРѕСЃР»Рµ ID СЃС‚РѕРёС‚ '=') - РїСЂРѕРІРµСЂРєР° Р±СѓРґРµС‚ РІ Р±Р»РѕРєРµ '='
+                    bool isDecl = (i - 1 >= 0 && lextable.table[i - 1].lexema == 't');
+                    bool isLHS = (i + 1 < lextable.size && lextable.table[i + 1].lexema == '=');
+
+                    if (!isDecl && !isLHS && !e.isDefined) {
+                        reportError(777, lex.sn, lex.tn, "РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ РїРµСЂРµРјРµРЅРЅРѕР№ РґРѕ РѕРїСЂРµРґРµР»РµРЅРёСЏ.");
+                    }
+                    if (isDecl) {
+                        idtable.table[lextable.table[i].idxIT].isDefined = true;
+                    }
+                }
+            }
+        }
+    }
+}

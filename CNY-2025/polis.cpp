@@ -1,185 +1,226 @@
-#include "polis.h"
+п»ї#include "polis.h"
+#include "semantic.h"   // РЅСѓР¶РЅРѕ, С‡С‚РѕР±С‹ РІС‹Р·РІР°С‚СЊ SM::evaluateRPN
 #include <stack>
-#include <queue>
+#include <vector>
+#include <iostream>
+#include <cstring> // РґР»СЏ strchr, РµСЃР»Рё РїРѕРЅР°РґРѕР±РёС‚СЃСЏ
 
 using namespace std;
 
-namespace Polis
+namespace PN
 {
-	/**
-	 * @brief Преобразует инфиксное выражение в обратную польскую запись (ОПЗ) в таблице лексем.
-	 *
-	 * @param lextable_pos Начальная позиция в lextable, с которой начинается выражение (обычно после знака присваивания).
-	 * @param lextable Таблица лексем, содержащая входное инфиксное выражение.
-	 * @param idtable Таблица идентификаторов (необходима для определения типа идентификатора, например, функция).
-	 * @return true, если преобразование выполнено успешно.
-	 */
-	bool polishNotation(int lextable_pos, LT::LexTable& lextable, IT::IdTable& idtable)
-	{
-		stack<LT::Entry> stk;		// Создаем **стек для хранения операторов** и скобок (выходной стек алгоритма сортировочной станции)
-		queue<LT::Entry> result;	// Создаем **очередь для хранения результата** - лексем в ОПЗ (выходная очередь)
-		bool function = false;		// Флаг, указывающий, обрабатывается ли сейчас вызов функции
-		int quantityParm = 0;		// Счетчик параметров текущей функции
-		int i = ++lextable_pos;		// Начинаем с позиции, следующей за началом выражения (например, после '=')
+    int priority(char op)
+    {
+        switch (op)
+        {
+        case '(': return 0;
+        case ')': return 0;
+        case '=': return 1;
+        case ',': return 2;
+        case '+': case '-': return 3;
+        case '*': case '/': case '%': return 4;
+        default: return -1;
+        }
+    }
 
-		// Основной цикл: обрабатываем лексемы до точки с запятой или до правой скобки, если стек не пуст
-		for (; lextable.table[i].lexema != LT_SEMICOLON && (lextable.table[i].lexema != LT_RIGHTHESIS || !stk.empty()); i++)
-		{
-			// Используем switch по лексеме для определения типа токена
-			switch (lextable.table[i].lexema)
-			{
-			case LT_ID:		// Лексема - **идентификатор** (операнд или имя функции)
-			case LT_LITERAL:	// Лексема - **литерал** (операнд)
-				if (idtable.table[lextable.table[i].idxIT].idtype == IT::IDTYPE::F)
-				{
-					quantityParm = 0;
-					function = true;
-					result.push(lextable.table[i]); // Имя функции сразу отправляем в выходную очередь
-					break;
-				}
-				// Если это операнд и мы внутри вызова функции,
-				// и это первый операнд/параметр после имени функции
-				if (function && !quantityParm)
-					quantityParm++; // Увеличиваем счетчик параметров (для первого параметра)
+    bool polishNotation(int pos, LT::LexTable& lextable, IT::IdTable& idtable)
+    {
+        stack<LT::Entry> ops;   // СЃС‚РµРє РѕРїРµСЂР°С‚РѕСЂРѕРІ
+        vector<LT::Entry> out;  // РІС‹С…РѕРґРЅР°СЏ СЃС‚СЂРѕРєР° (РћРџРќ)
+        stack<int> paramCount;  // СЃС‚РµРє СЃС‡РµС‚С‡РёРєР° РїР°СЂР°РјРµС‚СЂРѕРІ РґР»СЏ С„СѓРЅРєС†РёР№
 
-				// Отправляем операнд (ID или LITERAL) в выходную очередь
-				result.push(lextable.table[i]);
-				break;
+        // РќР°С…РѕРґРёРј РєРѕРЅРµС† РІС‹СЂР°Р¶РµРЅРёСЏ, С‡С‚РѕР±С‹ Р·РЅР°С‚СЊ РіСЂР°РЅРёС†С‹ РїРµСЂРµР·Р°РїРёСЃРё
+        int exprEndIdx = pos;
+        while (exprEndIdx < lextable.size) {
+            char c = lextable.table[exprEndIdx].lexema;
+            if (c == ';') { break; }
+            exprEndIdx++;
+        }
 
-			case LT_OP_BINARY: // Лексема - **оператор** (+, -, *, / и т.д.)
-				// Если стек пуст или на вершине стека левая скобка, просто помещаем оператор в стек
-				if (stk.empty() || stk.top().lexema == LT_LEFTHESIS)
-					stk.push(lextable.table[i]);
-				else
-				{
-					// Определяем приоритет текущего оператора
-					int prioritet = priority(lextable.table[i].sign);
-					// Если приоритет оператора на вершине стека **больше или равен** приоритету текущего оператора
-					if (priority(stk.top().sign) >= prioritet)
-					{
-						// Перемещаем оператор с вершины стека в выходную очередь
-						result.push(stk.top());
-						stk.pop(); // Удаляем оператор из стека
-					}
-					// Помещаем текущий оператор в стек
-					stk.push(lextable.table[i]);
-				}
-				break;
+        bool lastLexemaWasOperand = false;
 
-			case LT_LEFTHESIS: // Лексема - **левая скобка** '('
-				// Помещаем левую скобку в стек операторов
-				stk.push(lextable.table[i]);
-				break;
+        for (int i = pos; i < exprEndIdx; ++i) {
+            LT::Entry lex = lextable.table[i];
+            char lx = lex.lexema;
 
-			case LT_RIGHTHESIS: // Лексема - **правая скобка** ')'
-				// Перемещаем операторы из стека в очередь, пока не встретим левую скобку
-				while (stk.top().lexema != LT_LEFTHESIS)
-				{
-					result.push(stk.top());
-					stk.pop();
-				}
-				// Удаляем левую скобку из стека (не добавляя ее в очередь)
-				stk.pop();
+            // РћРџР•Р РђРќР”Р« (РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂС‹ Рё Р›РёС‚РµСЂР°Р»С‹)
+            if (lx == 'i' || lx == 'l') {
+                bool isFuncCall = false;
+                // РµСЃР»Рё СЌС‚Рѕ РёРјСЏ С„СѓРЅРєС†РёРё, Рё Р·Р° РЅРёРј РёРґРµС‚ '(', С‚Рѕ СЌС‚Рѕ РЅР°С‡Р°Р»Рѕ РІС‹Р·РѕРІР° С„СѓРЅРєС†РёРё
+                if (lx == 'i' && lex.idxIT != IT_NULLIDX) {
+                    if (idtable.table[lex.idxIT].idtype == IT::IDTYPE::F) {
+                        if (i + 1 < lextable.size && lextable.table[i + 1].lexema == '(') {
+                            isFuncCall = true;
+                        }
+                    }
+                }
 
-				// Если обрабатывался вызов функции
-				if (function)
-				{
-					// Добавляем специальный маркер **@** для обозначения вызова функции
-					LT::Entry a;
-					a.lexema = '@';
-					LT::Entry c;
-					c.lexema = '0' + quantityParm;
-					result.push(a);
-					// Добавляем **количество параметров** (как лексему с символом '0' + quantityParm)
-					result.push(c);
-					function = false; // Сбрасываем флаг функции
-				}
-				break;
+                if (isFuncCall) {
+                    ops.push(lex); // РёРјСЏ С„СѓРЅРєС†РёРё вЂ” РІ СЃС‚РµРє РѕРїРµСЂР°С‚РѕСЂРѕРІ (Р±СѓРґРµРј РѕР±СЂР°Р±Р°С‚С‹РІР°С‚СЊ РїСЂРё ')')
+                    lastLexemaWasOperand = false; // РёРјСЏ С„СѓРЅРєС†РёРё СЃР°РјРѕ РїРѕ СЃРµР±Рµ РЅРµ РѕРїРµСЂР°РЅРґ
+                }
+                else {
+                    out.push_back(lex); // РїРµСЂРµРјРµРЅРЅС‹Рµ Рё С‡РёСЃР»Р° вЂ” СЃСЂР°Р·Сѓ РІ РІС‹С…РѕРґ
+                    lastLexemaWasOperand = true;
+                }
+                continue;
+            }
 
-			case LT_COMMA: // Лексема - **запятая** (разделитель параметров функции)
-				// Если мы внутри вызова функции, увеличиваем счетчик параметров
-				if (function)
-					quantityParm++;
-				// Перемещаем операторы из стека в очередь до левой скобки
-				// (операторы внутри параметра функции должны быть выполнены перед запятой)
-				while (stk.top().lexema != LT_LEFTHESIS)
-				{
-					result.push(stk.top());
-					stk.pop();
-				}
-				break;
-			}
-		}
-		// После обработки всего выражения, перемещаем **оставшиеся операторы** из стека в очередь
-		while (!stk.empty())
-		{
-			result.push(stk.top());
-			stk.pop();
-		}
+            // РћРўРљР Р«Р’РђР®Р©РђРЇ РЎРљРћР‘РљРђ
+            if (lx == '(') {
+                // РѕРїСЂРµРґРµР»СЏРµРј: СЏРІР»СЏРµС‚СЃСЏ Р»Рё СЌС‚Р° СЃРєРѕР±РєР° Р°СЂРіСѓРјРµРЅС‚Р°С†РёРµР№ С„СѓРЅРєС†РёРё
+                bool isFuncArgs = false;
+                if (!ops.empty()) {
+                    LT::Entry top = ops.top();
+                    if (top.lexema == 'i' && top.idxIT != IT_NULLIDX) {
+                        if (idtable.table[top.idxIT].idtype == IT::IDTYPE::F) {
+                            isFuncArgs = true;
+                        }
+                    }
+                }
 
-		// Перезаписываем часть lextable (с lextable_pos до i) элементами из очереди result (ОПЗ)
-		for (int j = lextable_pos; j < i; j++)
-		{
-			if (!result.empty())
-			{
-				// Заменяем лексему в таблице на лексему из ОПЗ
-				lextable.table[j] = result.front();
-				// Копируем номер строки (sn)
-				lextable.table[j].sn = lextable.table[j - 1].sn;
-				// Увеличиваем номер токена (tn)
-				lextable.table[j].tn = lextable.table[j - 1].tn + 1;
-				result.pop();
-			}
-			else
-			{
-				// Если очередь опустела раньше, чем закончился цикл, заполняем оставшееся
-				// место специальными маркерами (например, @) или пустыми лексемами.
-				// В данном случае, похоже, это добавление '@' в конец выражения, если результат короче исходного.
-				lextable.table[j] = LT::Entry();
-				lextable.table[j].lexema = '@';
-				lextable.table[j].sn = lextable.table[j - 1].sn;
-				lextable.table[j].tn = lextable.table[j - 1].tn + 1;
-			}
-		}
+                ops.push(lex);
 
-		return true; // Преобразование завершено
-	}
+                if (isFuncArgs) {
+                    paramCount.push(0); // РќР°С‡Р°Р»Рѕ РїРѕРґСЃС‡РµС‚Р° РїР°СЂР°РјРµС‚СЂРѕРІ С„СѓРЅРєС†РёРё
+                }
+                else {
+                    paramCount.push(-1); // РћР±С‹С‡РЅР°СЏ СЃРєРѕР±РєР° (РЅРµ С„СѓРЅРєС†РёСЏ)
+                }
 
-	/**
-	 * @brief Определяет приоритет оператора.
-	 * @param v Символ оператора.
-	 * @return Уровень приоритета (чем выше число, тем выше приоритет).
-	 */
-	int priority(char v)
-	{
-		switch (v)
-		{
-		case '(':
-		case ')': return 1; // Самый низкий приоритет для скобок (внутри стека), чтобы они оставались там до ')'
-		case ',': return 2; // Приоритет запятой
-		case '+':
-		case '-': return 3; // Приоритет сложения/вычитания
-		case '*':
-		case '/':
-		case '%': return 4; // Самый высокий приоритет для умножения/деления/остатка
-		default: return 0; // Для нераспознанных или других символов
-		}
-	}
+                lastLexemaWasOperand = false;
+                continue;
+            }
 
-	/**
-	 * @brief Находит начало выражения (позицию после знака '=').
-	 * @param lextable Таблица лексем.
-	 * @return Индекс в lextable, следующий за знаком '=', или 0, если '=' не найден.
-	 */
-	int findExpression(LT::LexTable& lextable)
-	{
-		// Статическая переменная i сохраняет свое значение между вызовами,
-		// что позволяет искать выражения последовательно, начиная с места, где остановился предыдущий поиск.
-		for (static int i = 0; i < lextable.size; i++)
-		{
-			if (lextable.table[i].lexema == LT_EQUAL)
-				return ++i; // Возвращаем позицию, следующую за '='
-		}
-		return 0; // Возвращаем 0, если больше присваиваний не найдено
-	}
+            // Р—РђРљР Р«Р’РђР®Р©РђРЇ РЎРљРћР‘РљРђ
+            if (lx == ')') {
+                // РІС‹С‚Р°Р»РєРёРІР°РµРј РІСЃС‘ РґРѕ '('
+                while (!ops.empty() && ops.top().lexema != '(') {
+                    out.push_back(ops.top());
+                    ops.pop();
+                }
+
+                // СѓРґР°Р»СЏРµРј СЃР°РјСѓ '('
+                if (!ops.empty() && ops.top().lexema == '(') ops.pop();
+
+                // РѕР±СЂР°Р±РѕС‚РєР° РїР°СЂР°РјРµС‚СЂРѕРІ С„СѓРЅРєС†РёРё
+                if (!paramCount.empty()) {
+                    int currentCount = paramCount.top();
+                    paramCount.pop();
+
+                    if (currentCount != -1) { // СЌС‚Рѕ Р±С‹Р» РІС‹Р·РѕРІ С„СѓРЅРєС†РёРё
+                        int finalArgCount = currentCount;
+                        if (lastLexemaWasOperand) {
+                            // РµСЃР»Рё РїРµСЂРµРґ ')' Р±С‹Р» РѕРїРµСЂР°РЅРґ, Р·РЅР°С‡РёС‚ РїР°СЂР°РјРµС‚СЂ РЅРµ Р±С‹Р» СѓС‡С‚С‘РЅ РїСЂРё Р·Р°РїСЏС‚С‹С…
+                            finalArgCount++;
+                        }
+
+                        // РІ СЃС‚РµРєРµ СЃРµР№С‡Р°СЃ РґРѕР»Р¶РЅРѕ Р»РµР¶Р°С‚СЊ РёРјСЏ С„СѓРЅРєС†РёРё (РѕРЅРѕ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РЅР°Рґ '(' РІ СЃС‚РµРєРµ ops)
+                        if (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX) {
+                            LT::Entry funcName = ops.top();
+                            ops.pop();
+
+                            // 1. Р”РѕР±Р°РІР»СЏРµРј РєРѕР»РёС‡РµСЃС‚РІРѕ Р°СЂРіСѓРјРµРЅС‚РѕРІ (С†РёС„СЂР° РёР»Рё СЃРїРµС†СЃРёРјРІРѕР»)
+                            LT::Entry countLex;
+                            countLex.sn = lex.sn; countLex.tn = lex.tn; countLex.idxIT = IT_NULLIDX;
+                            // Р”Р»СЏ РїСЂРѕСЃС‚РѕС‚С‹, РµСЃР»Рё Р°СЂРіСѓРјРµРЅС‚РѕРІ <= 9, РїРёС€РµРј С†РёС„СЂСѓ, РёРЅР°С‡Рµ Р·Р°РїРёСЃС‹РІР°РµРј '!' (РјРѕР¶РЅРѕ РёР·РјРµРЅРёС‚СЊ)
+                            countLex.lexema = (finalArgCount <= 9) ? (char)('0' + finalArgCount) : '!';
+
+                            out.push_back(countLex);
+
+                            // 2. Р”РѕР±Р°РІР»СЏРµРј РѕРїРµСЂР°С‚РѕСЂ РІС‹Р·РѕРІР° '@'
+                            LT::Entry callOp;
+                            callOp.sn = lex.sn; callOp.tn = lex.tn; callOp.idxIT = IT_NULLIDX;
+                            callOp.lexema = '@';
+                            out.push_back(callOp);
+
+                            // 3. Р”РѕР±Р°РІР»СЏРµРј СЃР°РјРѕ РёРјСЏ С„СѓРЅРєС†РёРё (С‡С‚РѕР±С‹ СЃРµРјР°РЅС‚РёРєР° РјРѕРіР»Р° РЅР°Р№С‚Рё РµС‘ РІ idtable)
+                            out.push_back(funcName);
+
+                            // Р РµР·СѓР»СЊС‚Р°С‚ РІС‹Р·РѕРІР° С„СѓРЅРєС†РёРё вЂ” СЌС‚Рѕ РѕРїРµСЂР°РЅРґ
+                            lastLexemaWasOperand = true;
+                        }
+                        else {
+                            // РќРµРїСЂРµРґРІРёРґРµРЅРЅР°СЏ СЃРёС‚СѓР°С†РёСЏ: РёРјСЏ С„СѓРЅРєС†РёРё РЅРµ РЅР°Р№РґРµРЅРѕ РІ СЃС‚РµРєРµ ops.
+                            lastLexemaWasOperand = true; // Р±РµР·РѕРїР°СЃРЅС‹Р№ РґРµС„РѕР»С‚
+                        }
+                    }
+                    else {
+                        // РѕР±С‹С‡РЅС‹Рµ СЃРєРѕР±РєРё (expression) -> РІС‹СЂР°Р¶РµРЅРёРµ РІРЅСѓС‚СЂРё СЃРєРѕР±РѕРє СЃС‡РёС‚Р°РµС‚СЃСЏ РѕРїРµСЂР°РЅРґРѕРј
+                        lastLexemaWasOperand = true;
+                    }
+                }
+                continue;
+            }
+
+            // Р—РђРџРЇРўРђРЇ
+            if (lx == ',') {
+                // РІС‹С‚Р°Р»РєРёРІР°РµРј РѕРїРµСЂР°С‚РѕСЂС‹ РґРѕ РїРѕСЃР»РµРґРЅРµР№ '('
+                while (!ops.empty() && ops.top().lexema != '(') {
+                    out.push_back(ops.top());
+                    ops.pop();
+                }
+                // РµСЃР»Рё РјС‹ РІРЅСѓС‚СЂРё С„СѓРЅРєС†РёРё, СѓРІРµР»РёС‡РёРІР°РµРј СЃС‡РµС‚С‡РёРє РїР°СЂР°РјРµС‚СЂРѕРІ
+                if (!paramCount.empty() && paramCount.top() != -1) {
+                    int c = paramCount.top();
+                    paramCount.pop();
+                    paramCount.push(c + 1);
+                }
+                lastLexemaWasOperand = false; // Р–РґС‘Рј СЃР»РµРґСѓСЋС‰РёР№ РѕРїРµСЂР°РЅРґ
+                continue;
+            }
+
+            // РћРџР•Р РђРўРћР Р« (+, -, *, /, %, =, return)
+            if (lx == '+' || lx == '-' || lx == '*' || lx == '/' || lx == '=' || lx == 'r') {
+                // Р”Р»СЏ return ('r') Рё '=' РїСЂРёРѕСЂРёС‚РµС‚ РЅРёР·РєРёР№, РѕРЅРё РІС‹С‚РѕР»РєРЅСѓС‚ РІС‹СЃРѕРєРѕРїСЂРёРѕСЂРёС‚РµС‚РЅС‹Рµ РѕРїРµСЂР°С†РёРё
+                while (!ops.empty() && priority(ops.top().lexema) >= priority(lx)) {
+                    out.push_back(ops.top());
+                    ops.pop();
+                }
+                ops.push(lex);
+                lastLexemaWasOperand = false;
+                continue;
+            }
+
+            // Р”Р»СЏ РґСЂСѓРіРёС… Р»РµРєСЃРµРј вЂ” РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РїСЂРѕСЃС‚Рѕ РёРіРЅРѕСЂРёСЂСѓРµРј РёР»Рё РјРѕР¶РЅРѕ СЂР°СЃС€РёСЂРёС‚СЊ
+        }
+
+        // РІС‹С‚Р°Р»РєРёРІР°РµРј РѕСЃС‚Р°РІС€РёРµСЃСЏ РѕРїРµСЂР°С‚РѕСЂС‹
+        while (!ops.empty()) {
+            if (ops.top().lexema == '(' || ops.top().lexema == ')') {
+                // РѕС€РёР±РєР° Р±Р°Р»Р°РЅСЃР° СЃРєРѕР±РѕРє вЂ” СѓРґР°Р»СЏРµРј Р»РёС€РЅРµРµ
+                ops.pop();
+                continue;
+            }
+            out.push_back(ops.top());
+            ops.pop();
+        }
+
+        // РџР•Р Р•Р—РђРџРРЎР¬ LexTable вЂ” Р·Р°РїРёСЃС‹РІР°РµРј СЃС„РѕСЂРјРёСЂРѕРІР°РЅРЅСѓСЋ РћРџРќ
+        int outSize = (int)out.size();
+        for (int k = 0; k < outSize; ++k) {
+            if (pos + k < lextable.size) {
+                lextable.table[pos + k] = out[k];
+            }
+            else {
+                // Р•СЃР»Рё РІС‹С…РѕРґРЅР°СЏ РћРџРќ РґР»РёРЅРЅРµРµ РіСЂР°РЅРёС† вЂ” СЌС‚Рѕ СЂРµРґРєР°СЏ СЃРёС‚СѓР°С†РёСЏ; РјРѕР¶РЅРѕ СЂР°СЃС€РёСЂРёС‚СЊ С‚Р°Р±Р»РёС†Сѓ
+                // РЅРѕ СЃРµР№С‡Р°СЃ РїСЂРѕСЃС‚Рѕ РёРіРЅРѕСЂРёСЂСѓРµРј (РёР»Рё РІС‹Р±СЂРѕСЃРёС‚СЊ РѕС€РёР±РєСѓ)
+            }
+        }
+
+        // Р·Р°РїРѕР»РЅСЏРµРј РѕСЃС‚Р°С‚РѕРє РІС‹СЂР°Р¶РµРЅРёСЏ Р·Р°РіР»СѓС€РєР°РјРё '#', С‡С‚РѕР±С‹ СЃРѕС…СЂР°РЅРёС‚СЊ СЃС‚СЂСѓРєС‚СѓСЂСѓ РјР°СЃСЃРёРІР°
+        for (int k = pos + outSize; k < exprEndIdx; ++k) {
+            lextable.table[k].lexema = '#';
+            lextable.table[k].idxIT = IT_NULLIDX;
+        }
+
+        // --- Р’Р«Р—РћР’ РЎР•РњРђРќРўРР§Р•РЎРљРћР™ РћР¦Р•РќРљР РћРџРќ ---
+        // Р—Р°РїСѓСЃРєР°РµРј evaluateRPN, С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ С‚РёРї РІС‹СЂР°Р¶РµРЅРёСЏ Рё РїСЂРѕРІРµСЂРёС‚СЊ РІС‹Р·РѕРІС‹ С„СѓРЅРєС†РёР№/Р°СЂРіСѓРјРµРЅС‚С‹.
+        // Р•СЃР»Рё evaluateRPN РІРѕР·РІСЂР°С‰Р°РµС‚ UNDEF, Р·РЅР°С‡РёС‚ СЃРµРјР°РЅС‚РёРєР° РѕР±РЅР°СЂСѓР¶РёР»Р° РїСЂРѕР±Р»РµРјСѓ (РёР»Рё РІС‹СЂР°Р¶РµРЅРёРµ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ).
+        // Р’ semantic.cpp С„СѓРЅРєС†РёСЏ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РѕР±СЉСЏРІР»РµРЅР° РІ semantic.h РєР°Рє РІРёРґРёРјР°СЏ (РЅРµ static).
+        IT::IDDATATYPE exprType = SM::evaluateRPN(pos, lextable, idtable);
+        (void)exprType; // РїРѕРєР° вЂ” РЅРµ РёСЃРїРѕР»СЊР·СѓРµРј; РјРѕР¶РЅРѕ Р»РѕРіРёСЂРѕРІР°С‚СЊ РёР»Рё РґРµР№СЃС‚РІРѕРІР°С‚СЊ РґР°Р»СЊС€Рµ
+
+        return true;
+    }
 }

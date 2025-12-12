@@ -124,6 +124,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ast.cpp" />
+    <ClCompile Include="generation.cpp" />
     <ClCompile Include="grb.cpp" />
     <ClCompile Include="it.cpp" />
     <ClCompile Include="lexer.cpp" />
@@ -142,6 +143,7 @@
   <ItemGroup>
     <ClInclude Include="ast.h" />
     <ClInclude Include="error.h" />
+    <ClInclude Include="generation.h" />
     <ClInclude Include="grb.h" />
     <ClInclude Include="in.h" />
     <ClInclude Include="it.h" />
@@ -153,7 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\in.cny" />
-    <None Include="..\in.cny.out" />
+    <None Include="..\in.cny.out.asm" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\in.cny.log" />

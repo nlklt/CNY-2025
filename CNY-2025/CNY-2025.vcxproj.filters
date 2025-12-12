@@ -60,6 +60,9 @@
     <ClCompile Include="ast.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="generation.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="error.h">
@@ -92,12 +95,15 @@
     <ClInclude Include="ast.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="generation.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\in.cny">
       <Filter>Файлы ресурсов</Filter>
     </None>
-    <None Include="..\in.cny.out">
+    <None Include="..\in.cny.out.asm">
       <Filter>Файлы ресурсов</Filter>
     </None>
   </ItemGroup>

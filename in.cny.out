@@ -1,1 +1,185 @@
-int G1 = 1;|char G2 = 'A';|string G3 = "Global str";|int OCt = 0o123;||function int sum(int a, int b) {|	|	print("Enter sum");|	return a + b;|}||function char get_char(int x) {|	|	x++;|	int inv = ~x; |	return 'Y';|}||int main() {|	int x = 10;|	string S = "Тест кириллицы";|	int LMin = 0;|	|	x = sum(x, G1) * 2 / 1;|	x--;|	|	for int i = 1..3 {|		int x = i;|		LMin = LMin + x;|	}||	string T = get_time();|	string D = get_date();|	|	char Sym = get_char(LMin);|	print(Sym);||	string E = "";|	char Zero = '0';|	|	return 0;|}|
+.model flat, stdcall
+.stack 4096
+.const
+	newline byte 13, 10, 0
+	true_str byte 'true', 0
+	false_str byte 'false', 0
+	Lnum_N0 sdword 0
+	Lnum_N1 sdword 0
+	Lnum_N2 sdword 0
+	Lnum_N3 sdword 0
+	Lnum_N4 sdword 0
+	Lchar_C5 dword 65
+	Lstr_S6 byte 'Global str', 0
+	Lnum_N7 sdword 83
+	Lstr_S8 byte 'Enter sum', 0
+	Lchar_C9 dword 89
+	Lnum_N10 sdword 0
+	Lstr_S11 byte 'Тест кириллицы', 0
+	Lnum_N12 sdword 0
+	Lnum_N13 sdword 0
+	Lnum_N14 sdword 0
+	Lnum_N15 sdword 0
+	Lnum_N16 sdword 0
+	Lstr_S17 byte '', 0
+	Lchar_C18 dword 48
+	Lnum_N19 sdword 0
+.data
+	switch_res sdword 0
+	a sdword 0
+	b sdword 0
+	c sdword 0
+	d sdword 0
+	e sdword 0
+	G2 sdword 0
+	G3 dword ?
+	OCt sdword 0
+	e sdword 0
+	c sdword 0
+	inv sdword 0
+	x sdword 0
+	S dword ?
+	LMin sdword 0
+	i sdword 0
+	x sdword 0
+	T dword ?
+	D dword ?
+	Sym sdword 0
+	E dword ?
+	Zero sdword 0
+.code
+	push Lnum_N0
+	pop eax
+	mov a, eax
+	push Lnum_N1
+	pop eax
+	mov b, eax
+	push Lnum_N2
+	pop eax
+	mov c, eax
+	push Lnum_N3
+	pop eax
+	mov d, eax
+	push Lnum_N4
+	pop eax
+	mov e, eax
+	push Lchar_C5
+	pop eax
+	mov G2, eax
+	push offset Lstr_S6
+	pop eax
+	mov G3, eax
+	push Lnum_N7
+	pop eax
+	mov OCt, eax
+	push a
+	push b
+	push c
+	pop ebx
+	pop eax
+	cdq
+	idiv ebx
+	push eax
+	push d
+	pop ebx
+	pop eax
+	sub eax, ebx
+	push eax
+	pop ebx
+	pop eax
+	add eax, ebx
+	push eax
+	push e
+	pop ebx
+	pop eax
+	imul ebx
+	push eax
+	pop ebx
+	pop eax
+	sub eax, ebx
+	push eax
+	pop ebx
+	pop eax
+	imul ebx
+	push eax
+	pop eax
+	mov e, eax
+sum PROC a : DWORD, b : DWORD
+	push a
+	push b
+	pop ebx
+	pop eax
+	add eax, ebx
+	push eax
+	pop eax
+	mov c, eax
+	push c
+	pop eax
+	ret
+get_char PROC x : DWORD
+	push x
+	pop eax
+	mov inv, eax
+	push Lchar_C9
+	pop eax
+	ret
+main PROC
+	push Lnum_N10
+	pop eax
+	mov x, eax
+	push offset Lstr_S11
+	pop eax
+	mov S, eax
+	push Lnum_N12
+	pop eax
+	mov LMin, eax
+	push x
+	push a
+	push sum
+	push Lnum_N13
+	pop ebx
+	pop eax
+	imul ebx
+	push eax
+	push Lnum_N14
+	pop ebx
+	pop eax
+	cdq
+	idiv ebx
+	push eax
+	pop eax
+	mov x, eax
+	push Lnum_N15
+	push Lnum_N16
+	pop eax
+	mov i, eax
+	push i
+	pop eax
+	mov x, eax
+	push LMin
+	push x
+	pop ebx
+	pop eax
+	add eax, ebx
+	push eax
+	pop eax
+	mov LMin, eax
+	push T
+	pop eax
+	mov T, eax
+	push D
+	pop eax
+	mov D, eax
+	push LMin
+	push get_char
+	pop eax
+	mov Sym, eax
+	push offset Lstr_S17
+	pop eax
+	mov E, eax
+	push Lchar_C18
+	pop eax
+	mov Zero, eax
+	push Lnum_N19
+	pop eax
+	ret

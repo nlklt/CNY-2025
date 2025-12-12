@@ -1,4 +1,5 @@
-﻿#include "error.h"
+﻿#include "generation.h"
+#include "error.h"
 #include "parm.h"
 #include "in.h"
 #include "lt.h"
@@ -74,10 +75,6 @@ int wmain(int argc, wchar_t* argv[]) {
 
         mfst.printrules();
 
-        LT::Entry eof;
-        eof.lexema = EOF;
-        LT::Add(lextable, eof);
-
         SM::semanticAnalysis(lextable, idtable);
 
         std::cout << "Успешное завершение.";
@@ -89,8 +86,22 @@ int wmain(int argc, wchar_t* argv[]) {
         Log::WriteLine(log, (char*)"Успешное завершение.", "");
         Log::Close(log);
 
+        std::ofstream asmFile(parm.out);
+        if (!asmFile.is_open())
+        {
+            std::cout << "Ошибка: Не удалось открыть файл " << parm.out << std::endl;
+        }
+
+        GN::Generate(lextable, idtable, &asmFile);
+
         LT::Delete(lextable);
         IT::Delete(idtable);
+
+        asmFile.close();
+
+        Log::WriteLine(log, (char*)"Ассемблер успешно сгенерирован.\n", "");
+        Log::WriteLine(log, (char*)"---------- Результат генерации --------\n", "");
+        WriteLine(log, (wchar_t*)L"Файл с исходным кодом на языке ассемблер находится по пути: ", (wchar_t*)parm.out, L"");
     }
 
     catch (Error::ERROR e) {
@@ -103,27 +114,13 @@ int wmain(int argc, wchar_t* argv[]) {
     return 0;
 }
 
-	//int main() {
-	//	for (size_t i = 0; i < 16; i++)
-	//	{
-	//		for (size_t j = 0; j < 16; j++)
-	//		{
-	//			char c = i * 16 + j;
-	//			unsigned char uc = static_cast<unsigned char>(c);
-	//			if (uc >= 'A' && uc <= 'Z' || uc >= 'a' && uc <= 'z' || uc == '_' || uc >= '0' && uc <= '9' ||
-	//				uc >= (unsigned char)'А' && uc <= (unsigned char)'Я' || uc >= (unsigned char)'а' && uc <= (unsigned char)'я' || uc == (unsigned char)'Ё' || uc == (unsigned char)'ё' ||
-	//				uc == '=' || uc == '+' || uc == '-' || uc == '*' || uc == '/' || uc == '~' ||
-	//				uc == '.' || uc == ',' || uc == ';' || uc == ' ' || uc == '\t'|| 
-	//				uc == '(' || uc == ')' || uc == '{' || uc == '}' || uc == '\'' || uc == '"'
-	//				)
-	//				std::cout << "IN::T, ";
-	//			else if (uc == '\n' || uc == '#')
-	//				std::cout << "IN::IN_SEPORATOR, ";
-	//			else if (uc == '\r')
-	//				std::cout << "IN::I, ";
-	//			else
-	//				std::cout << "IN::F, ";
-	//		}
-	//		std::cout << "\\\n";
-	//	}
-	//}
+//#include <iostream>
+//int main() {
+//	int i = 1 + 1 * 3;
+//	char a = 'i';
+//	int b = i * a - i + a;
+//	std::cout << b;
+//
+//
+//	return 0;
+//}

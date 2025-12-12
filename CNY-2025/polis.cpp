@@ -1,41 +1,43 @@
 ﻿#include "polis.h"
-#include "semantic.h"   // нужно, чтобы вызвать SM::evaluateRPN
+#include "error.h"
 #include <stack>
 #include <vector>
 #include <iostream>
-#include <cstring> // для strchr, если понадобится
 
 using namespace std;
 
 namespace PN
 {
-    int priority(char op)
+    int priority(LT::Entry lex)
     {
-        switch (op)
+        switch (lex.sign)
         {
-        case '(': return 0;
-        case ')': return 0;
-        case '=': return 1;
-        case ',': return 2;
-        case '+': case '-': return 3;
-        case '*': case '/': case '%': return 4;
+        case LT_LEFTHESIS:  return 0;
+        case LT_RIGHTHESIS: return 0;
+        case LT_COMMA: return 2;
+
+        case LT::SIGNATURE::plus:  return 3;
+        case LT::SIGNATURE::minus: return 3;
+        case LT::SIGNATURE::multiplication: return 4;
+        case LT::SIGNATURE::division:       return 4;
+
+        case LT::SIGNATURE::increment:       return 5;
+        case LT::SIGNATURE::dicrement:       return 5;
+        case LT::SIGNATURE::inversion:       return 5;
         default: return -1;
         }
     }
 
     bool polishNotation(int pos, LT::LexTable& lextable, IT::IdTable& idtable)
     {
-        stack<LT::Entry> ops;   // стек операторов
-        vector<LT::Entry> out;  // выходная строка (ОПН)
-        stack<int> paramCount;  // стек счетчика параметров для функций
+        stack<LT::Entry> ops;            // стек операторов и имён функций
+        vector<LT::Entry> out;           // выход (ОПН)
+        stack<int> paramCount;           // стек счётчиков аргументов для функций
+        // Не кладём начальный 0 — создаём запись для скобок только при встрече '('
 
-        // Находим конец выражения, чтобы знать границы перезаписи
+        // находим конец выражения (';')
         int exprEndIdx = pos;
-        while (exprEndIdx < lextable.size) {
-            char c = lextable.table[exprEndIdx].lexema;
-            if (c == ';') { break; }
-            exprEndIdx++;
-        }
+        while (exprEndIdx < lextable.size && lextable.table[exprEndIdx].lexema != ';') ++exprEndIdx;
 
         bool lastLexemaWasOperand = false;
 
@@ -43,183 +45,138 @@ namespace PN
             LT::Entry lex = lextable.table[i];
             char lx = lex.lexema;
 
-            // ОПЕРАНДЫ (Идентификаторы и Литералы)
+            // идентификатор или литерал
             if (lx == 'i' || lx == 'l') {
-                bool isFuncCall = false;
-                // если это имя функции, и за ним идет '(', то это начало вызова функции
-                if (lx == 'i' && lex.idxIT != IT_NULLIDX) {
-                    if (idtable.table[lex.idxIT].idtype == IT::IDTYPE::F) {
-                        if (i + 1 < lextable.size && lextable.table[i + 1].lexema == '(') {
-                            isFuncCall = true;
-                        }
-                    }
+                // если след. лексема — '(', то это возможно имя функции; смотрим в idtable
+                bool nextIsLeftParen = (i + 1 < exprEndIdx && lextable.table[i + 1].lexema == '(');
+                bool isFuncName = false;
+                if (lx == 'i' && lex.idxIT != IT_NULLIDX && nextIsLeftParen) {
+                    if (idtable.table[lex.idxIT].idtype == IT::IDTYPE::C) isFuncName = true;
                 }
 
-                if (isFuncCall) {
-                    ops.push(lex); // имя функции — в стек операторов (будем обрабатывать при ')')
-                    lastLexemaWasOperand = false; // имя функции само по себе не операнд
+                if (isFuncName) {
+                    ops.push(lex); // имя функции во стек (будет обработано при ')')
+                    lastLexemaWasOperand = false;
                 }
                 else {
-                    out.push_back(lex); // переменные и числа — сразу в выход
+                    out.push_back(lex);
                     lastLexemaWasOperand = true;
                 }
                 continue;
             }
 
-            // ОТКРЫВАЮЩАЯ СКОБКА
+            // открывающая скобка
             if (lx == '(') {
-                // определяем: является ли эта скобка аргументацией функции
-                bool isFuncArgs = false;
-                if (!ops.empty()) {
-                    LT::Entry top = ops.top();
-                    if (top.lexema == 'i' && top.idxIT != IT_NULLIDX) {
-                        if (idtable.table[top.idxIT].idtype == IT::IDTYPE::F) {
-                            isFuncArgs = true;
-                        }
-                    }
-                }
+                // определяем, является ли скобка аргументацией функции: если над ней в стеке лежит имя функции
+                bool isFuncArgs = (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX
+                    && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::C);
 
                 ops.push(lex);
 
-                if (isFuncArgs) {
-                    paramCount.push(0); // Начало подсчета параметров функции
-                }
-                else {
-                    paramCount.push(-1); // Обычная скобка (не функция)
-                }
+                if (isFuncArgs)
+                    paramCount.push(0); // начинаем считать аргументы для функции
+                else
+                    paramCount.push(-1); // обычные скобки
 
                 lastLexemaWasOperand = false;
                 continue;
             }
 
-            // ЗАКРЫВАЮЩАЯ СКОБКА
+            // закрывающая скобка
             if (lx == ')') {
-                // выталкиваем всё до '('
+                // выталкиваем операторы до '('
                 while (!ops.empty() && ops.top().lexema != '(') {
-                    out.push_back(ops.top());
-                    ops.pop();
+                    out.push_back(ops.top()); ops.pop();
                 }
 
-                // удаляем саму '('
+                // удаляем '('
                 if (!ops.empty() && ops.top().lexema == '(') ops.pop();
 
-                // обработка параметров функции
                 if (!paramCount.empty()) {
-                    int currentCount = paramCount.top();
-                    paramCount.pop();
+                    int cnt = paramCount.top(); paramCount.pop();
 
-                    if (currentCount != -1) { // это был вызов функции
-                        int finalArgCount = currentCount;
-                        if (lastLexemaWasOperand) {
-                            // если перед ')' был операнд, значит параметр не был учтён при запятых
-                            finalArgCount++;
-                        }
+                    if (cnt != -1) {
+                        // это была аргументация функции
+                        int finalArgCount = cnt + (lastLexemaWasOperand ? 1 : 0);
 
-                        // в стеке сейчас должно лежать имя функции (оно должно быть над '(' в стеке ops)
-                        if (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX) {
-                            LT::Entry funcName = ops.top();
-                            ops.pop();
+                        // над '(' в стеке должно быть имя функции
+                        if (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX
+                            && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::C) {
 
-                            // 1. Добавляем количество аргументов (цифра или спецсимвол)
-                            LT::Entry countLex;
-                            countLex.sn = lex.sn; countLex.tn = lex.tn; countLex.idxIT = IT_NULLIDX;
-                            // Для простоты, если аргументов <= 9, пишем цифру, иначе записываем '!' (можно изменить)
+                            LT::Entry funcName = ops.top(); ops.pop();
+
+                            // запись: сначала количество аргументов, затем операция вызова '@', затем имя функции
+                            LT::Entry countLex = lex;
+                            countLex.idxIT = IT_NULLIDX;
+                            // ограничимся 0..9 символом, >9 пометим как '!' (можно изменить на другой подход)
                             countLex.lexema = (finalArgCount <= 9) ? (char)('0' + finalArgCount) : '!';
-
                             out.push_back(countLex);
 
-                            // 2. Добавляем оператор вызова '@'
-                            LT::Entry callOp;
-                            callOp.sn = lex.sn; callOp.tn = lex.tn; callOp.idxIT = IT_NULLIDX;
-                            callOp.lexema = '@';
+                            LT::Entry callOp = lex; callOp.idxIT = IT_NULLIDX; callOp.lexema = '@';
                             out.push_back(callOp);
 
-                            // 3. Добавляем само имя функции (чтобы семантика могла найти её в idtable)
                             out.push_back(funcName);
 
-                            // Результат вызова функции — это операнд
                             lastLexemaWasOperand = true;
                         }
                         else {
-                            // Непредвиденная ситуация: имя функции не найдено в стеке ops.
-                            lastLexemaWasOperand = true; // безопасный дефолт
+                            // имя функции не найдено — безопасно считаем результат операндом
+                            lastLexemaWasOperand = true;
                         }
                     }
                     else {
-                        // обычные скобки (expression) -> выражение внутри скобок считается операндом
+                        // обычные скобки — выражение внутри считается операндом
                         lastLexemaWasOperand = true;
                     }
                 }
                 continue;
             }
 
-            // ЗАПЯТАЯ
+            // запятая — разделитель параметров
             if (lx == ',') {
-                // выталкиваем операторы до последней '('
-                while (!ops.empty() && ops.top().lexema != '(') {
-                    out.push_back(ops.top());
-                    ops.pop();
-                }
-                // если мы внутри функции, увеличиваем счетчик параметров
+                // выталкиваем операторы до ближайшей '('
+                while (!ops.empty() && ops.top().lexema != '(') { out.push_back(ops.top()); ops.pop(); }
+                // если текущие скобки — аргументы функции, увеличиваем счётчик
                 if (!paramCount.empty() && paramCount.top() != -1) {
-                    int c = paramCount.top();
-                    paramCount.pop();
-                    paramCount.push(c + 1);
+                    int c = paramCount.top(); paramCount.pop(); paramCount.push(c + 1);
                 }
-                lastLexemaWasOperand = false; // Ждём следующий операнд
+                lastLexemaWasOperand = false;
                 continue;
             }
 
-            // ОПЕРАТОРЫ (+, -, *, /, %, =, return)
-            if (lx == '+' || lx == '-' || lx == '*' || lx == '/' || lx == '=' || lx == 'r') {
-                // Для return ('r') и '=' приоритет низкий, они вытолкнут высокоприоритетные операции
-                while (!ops.empty() && priority(ops.top().lexema) >= priority(lx)) {
-                    out.push_back(ops.top());
-                    ops.pop();
+            // операторы (универсальная обработка бинарных/унарных)
+            if (lx == 'v' || lx == 'u' || lx == '+' || lx == '-' || lx == '*' || lx == '/') {
+                // Учет приоритета: если верх стека имеет приоритет >= текущего и это не '(', выталкиваем
+                while (!ops.empty() && ops.top().lexema != '(' && priority(ops.top()) >= priority(lex)) {
+                    out.push_back(ops.top()); ops.pop();
                 }
                 ops.push(lex);
                 lastLexemaWasOperand = false;
                 continue;
             }
 
-            // Для других лексем — по умолчанию просто игнорируем или можно расширить
+            // прочие — игнорируем
         }
 
         // выталкиваем оставшиеся операторы
         while (!ops.empty()) {
-            if (ops.top().lexema == '(' || ops.top().lexema == ')') {
-                // ошибка баланса скобок — удаляем лишнее
-                ops.pop();
-                continue;
-            }
-            out.push_back(ops.top());
-            ops.pop();
+            if (ops.top().lexema == '(' || ops.top().lexema == ')') { ops.pop(); continue; }
+            out.push_back(ops.top()); ops.pop();
         }
 
-        // ПЕРЕЗАПИСЬ LexTable — записываем сформированную ОПН
+        // перезапись lextable (проверяем границы)
         int outSize = (int)out.size();
         for (int k = 0; k < outSize; ++k) {
-            if (pos + k < lextable.size) {
-                lextable.table[pos + k] = out[k];
-            }
-            else {
-                // Если выходная ОПН длиннее границ — это редкая ситуация; можно расширить таблицу
-                // но сейчас просто игнорируем (или выбросить ошибку)
-            }
+            if (pos + k < lextable.size) lextable.table[pos + k] = out[k];
+            else ERROR_THROW(102);
         }
 
-        // заполняем остаток выражения заглушками '#', чтобы сохранить структуру массива
+        // очищаем следующее пространство до ';'
         for (int k = pos + outSize; k < exprEndIdx; ++k) {
             lextable.table[k].lexema = '#';
             lextable.table[k].idxIT = IT_NULLIDX;
+            // при необходимости обнулять и другие поля (sign, value и т.д.)
         }
-
-        // --- ВЫЗОВ СЕМАНТИЧЕСКОЙ ОЦЕНКИ ОПН ---
-        // Запускаем evaluateRPN, чтобы получить тип выражения и проверить вызовы функций/аргументы.
-        // Если evaluateRPN возвращает UNDEF, значит семантика обнаружила проблему (или выражение некорректно).
-        // В semantic.cpp функция должна быть объявлена в semantic.h как видимая (не static).
-        IT::IDDATATYPE exprType = SM::evaluateRPN(pos, lextable, idtable);
-        (void)exprType; // пока — не используем; можно логировать или действовать дальше
 
         return true;
     }

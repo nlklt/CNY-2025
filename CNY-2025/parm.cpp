@@ -43,7 +43,7 @@ namespace Parm {
 		}
 		if (parm.out[0] == L'\0') {
 			wcscpy_s(parm.out, parm.in);
-			wcsncat_s(parm.out, PARM_MAX_SIZE, L".out", 4);
+			wcsncat_s(parm.out, PARM_MAX_SIZE, L".out.asm", 8);
 		}
 		return parm;
 	}

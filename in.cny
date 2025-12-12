@@ -1,28 +1,32 @@
-int G1 = 1;
+int a = 1;
+int b = 2;
+int c = 2;
+int d = 3;
+int e = 4;
 char G2 = 'A';
 string G3 = "Global str";
 int OCt = 0o123;
 
+int e = (a+((b/c)-d))*e;
+
 function int sum(int a, int b) {
 	# print, get_time, get_date - стандартные имена
 	print("Enter sum");
-	return a + b;
+	int c = a + b;
+	return c;
 }
 
 function char get_char(int x) {
 	# Унарные: инкремент и инверсия
-	x++;
-	int inv = ~x; 
 	return 'Y';
 }
 
 int main() {
 	int x = 10;
 	string S = "Тест кириллицы";
-	int LMin = 0;
+	int LMin = x;
 	
-	x = sum(x, G1) * 2 / 1;
-	x--;
+	x = sum(x, a) * 2 / 1;
 	
 	for int i = 1..3 {
 		int x = i;

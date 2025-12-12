@@ -87,10 +87,22 @@ namespace Lexer
                     if (kw == LT_FUNCTION) afterFunctionKeyword = true;
 
                     if      (word == "return" || word == "print" || word == "get_date" || word == "get_time")   {
-                        IT::Entry identry_i(lt.size, word, scopeStack.back(), IT::IDTYPE::C, IT::IDDATATYPE::STR, scopeStack.back());
-                        IT::Add(it, identry_i);
-                    LT::Entry kwentry_l(kw, sign, line, ++tn, it.size - 1);
+                    LT::Entry kwentry_l(kw, sign, line, ++tn, it.size);
                     LT::Add(lt, kwentry_l);
+                    if (word == "print") {
+                        IT::Entry identry_i(lt.size, word, "gloabl", IT::IDTYPE::C, IT::IDDATATYPE::STR, "print");
+                        identry_i.isDefined = true;
+                        identry_i.params.count = 1;
+                        identry_i.params.types = { IT::IDDATATYPE::STR };
+                        IT::Add(it, identry_i);
+                    }
+                    if (word == "get_date" || word == "get_time") {
+                        IT::Entry identry_i(lt.size, word, "global", IT::IDTYPE::C, IT::IDDATATYPE::STR, "print");
+                        identry_i.isDefined = true;
+                        identry_i.params.count = 0;
+                        identry_i.params.types = {};
+                        IT::Add(it, identry_i);
+                    }
                     }
                     else {
                         LT::Entry kwentry_l(kw, sign, line, ++tn, LT_NULLIDX);
@@ -204,15 +216,32 @@ namespace Lexer
                     std::string number = std::string("0o") + oct;
                     
                     IT::Entry octentry_i(lt.size + 1, number, IT::IDTYPE::L, IT::IDDATATYPE::INT);
-                    octentry_i.value.vint = (int)value;
+
+
+                        octentry_i.value.vint = (int)value;
+                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                        octentry_i.value.vint *= (-1);
+                    }
+
                     IT::Add(it, octentry_i);
+
                     int idxIT = it.size - 1;
 
-                    char sign = LT::SIGNATURE::number;
+                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                        char sign = LT::SIGNATURE::number;
 
-                    LT::Entry octentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
+                        LT::Entry octentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
 
-                    LT::Add(lt, octentry_l);
+                        lt.table[lt.size - 2] = octentry_l;
+                    }
+                    else {
+
+                        char sign = LT::SIGNATURE::number;
+
+                        LT::Entry octentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
+
+                        LT::Add(lt, octentry_l);
+                    }
                     continue;
                 }
                 else // десятичный литерал
@@ -229,15 +258,33 @@ namespace Lexer
                     try { value = std::stoll(dec); }
                     catch (...) { ERROR_THROW(201); }
 
-                    IT::Entry decentry_i(lt.size + 1, dec, IT::IDTYPE::L, IT::IDDATATYPE::INT);;
+
+                    IT::Entry decentry_i(lt.size + 1, dec, IT::IDTYPE::L, IT::IDDATATYPE::INT);
+                    
+                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                        value *= (-1);
+                    }
+
+                    decentry_i.value.vint = value;
 
                     IT::Add(it, decentry_i);
                     int idxIT = it.size - 1;
 
-                    char sign = LT::SIGNATURE::number;
-                    LT::Entry decentry_l(LT_LITERAL, sign, line, ++tn, idxIT);;
+                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                        char sign = LT::SIGNATURE::number;
 
-                    LT::Add(lt, decentry_l);
+                        LT::Entry decentry_i(LT_LITERAL, sign, line, ++tn, idxIT);
+
+                        lt.table[lt.size - 1] = decentry_i;
+                    }
+                    else {
+
+                        char sign = LT::SIGNATURE::number;
+
+                        LT::Entry decentry_i(LT_LITERAL, sign, line, ++tn, idxIT);
+
+                        LT::Add(lt, decentry_i);
+                    }
                     continue;
                 }
             }

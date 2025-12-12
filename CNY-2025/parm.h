@@ -6,7 +6,7 @@
 #define PARM_LOG			 L"-l"
 #define PARM_OUT			 L"-o"
 #define PARM_MAX_SIZE		 300
-#define PARM_OUT_DEFAULT_EXT L".out"
+#define PARM_OUT_DEFAULT_EXT L".out.asm"
 #define PARM_LOG_DEFAULT_EXT L".log"
 
 namespace Parm {

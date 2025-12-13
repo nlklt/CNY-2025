@@ -1,46 +1,52 @@
-int a = 1;
-int b = 2;
-int c = 2;
-int d = 3;
-int e = 4;
-char G2 = 'A';
-string G3 = "Global str";
-int OCt = 0o123;
-
-int e = (a+((b/c)-d))*e;
-
-function int sum(int a, int b) {
-	# print, get_time, get_date - стандартные имена
-	print("Enter sum");
+function int arithmetic_test(int a, int b) {
 	int c = a + b;
-	return c;
+	print("; 5 + 3 = ");
+	print(c);
+	int c = a - b;
+	print("; 5 - 3 = ");
+	print(c);
+	int c = a * b;
+	print("; 5 * 3 = ");
+	print(c);
+	int c = a / b;
+	print("; 5 / 3 = ");
+	print(c);
+	int c = a / b * 8;
+	print("; 5 / 3 * 8 = ");
+	print(c);
+	int c = a / (b * 8);
+	print("; 5 / (3 * 8) = ");
+	print(c);
+	int c = 4 + a / b * 8;
+	print("; 4 + 5 / 3 * 8 = ");
+	print(c);
+	int c = (4 + a) / b * 8;
+	print("; (4 + 5) / 3 * 8 = ");
+	print(c);
+	int c = (4 + a) / (b * 8);
+	print("; (4 + 5) / (3 * 8) = ");
+	print(c);
+
+	return 0;
 }
 
-function char get_char(int x) {
-	# Унарные: инкремент и инверсия
-	return 'Y';
-}
+int a_int = -4;
+int b_int = 0;
+int e_int = -0o12;
+
+string c_string = "фыва";
+string d_string = "";
 
 int main() {
-	int x = 10;
-	string S = "Тест кириллицы";
-	int LMin = x;
-	
-	x = sum(x, a) * 2 / 1;
-	
-	for int i = 1..3 {
-		int x = i;
-		LMin = LMin + x;
-	}
+	int c_int = 12;
+	int d_int = 0o12;
+	string a_string = "s";
+	string b_string = "abcd";
 
-	string T = get_time();
-	string D = get_date();
-	
-	char Sym = get_char(LMin);
-	print(Sym);
+	int a = 5;
+	int b = 3;
+	int res = arithmetic_test(5, b);
+	print(res);
 
-	string E = "";
-	char Zero = '0';
-	
-	return 0;
+	return 10;
 }

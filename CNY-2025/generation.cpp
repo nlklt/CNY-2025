@@ -1,499 +1,247 @@
-// generation.cpp — упрощённый генератор ASM (MASM x86)
-// В этой версии extrn-декларации формируются динамически после
-// анализа таблицы идентификаторов, чтобы избежать конфликта имён
-// (например, если пользователь определил функцию get_char).
-// Требует lt.h, it.h (как у вас).
-
-#include "lt.h"
-#include "it.h"
-
-#include <string>
+#include "generation.h"
 #include <vector>
 #include <stack>
-#include <iostream>
-#include <fstream>
-#include <unordered_map>
-#include <unordered_set>
-#include <algorithm>
-#include <cctype>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
-namespace GN {
+namespace GN
+{
+	void GenerationASM(std::ostream* stream, LT::LexTable& lextable, IT::IdTable& idtable)
+	{
+		ostream* file = stream;
+		*file << BEGIN;
+		*file << EXTERN;
+		*file << STACK(4096);
+		GenConstAndData(idtable, file);
+		*file << CODE;
+		GenCode(lextable, idtable, file);
+		*file << END;
+	}
 
-    static string SanitizeName(const string& s) {
-        if (s.empty()) return "anon";
-        string out;
-        bool first = true;
-        for (unsigned char uc : s) {
-            if (isalnum(uc) || uc == '_') {
-                if (first && isdigit(uc)) out.push_back('_');
-                out.push_back((char)uc);
-            }
-            else out.push_back('_');
-            first = false;
-        }
-        return out;
-    }
+	void GenConstAndData(IT::IdTable& idtable, ostream* file)
+	{
+		vector <string> result;
+		vector <string> con;	con.push_back(CONST);
+		vector <string> data;	data.push_back(DATA);
 
-    static string MakeVarAsmName(const IT::Entry& e, int idx) {
-        string base = SanitizeName(e.id);
-        string scope = SanitizeName(e.scope.empty() ? "g" : e.scope);
-        return base + "_" + scope + "_" + to_string(idx);
-    }
+		for (int i = 0; i < idtable.size; i++)
+		{
+			string str = "\t" + idtable.table[i].fullName;
 
-    static string GetUniqueLiteralName(const IT::Entry& entry, int index) {
-        if (entry.iddatatype == IT::INT) return "Lnum_" + to_string(index);
-        if (entry.iddatatype == IT::STR) return "Lstr_" + to_string(index);
-        if (entry.iddatatype == IT::CHR) return "Lchar_" + to_string(index);
-        return "Llit_" + to_string(index);
-    }
+			if (idtable.table[i].idtype == IT::IDTYPE::L) {			// литерал
+				switch (idtable.table[i].iddatatype) {
+				case IT::IDDATATYPE::INT:  str += " sdword " + itoS(idtable.table[i].value.vint);  break;
+				case IT::IDDATATYPE::STR:
+					if (string(idtable.table[i].value.vstr) != "")  str += " byte \"" + string(idtable.table[i].value.vstr) + "\" , 0";
+					else str += " byte 0, 0";
+					break;
+				case IT::IDDATATYPE::CHR:							// !!! сделать для char
+					if (string(idtable.table[i].value.vstr) != "")  str += " byte \"" + string(idtable.table[i].value.vstr) + "\" , 0";
+					else str += " byte 0, 0";
+					break;
+				}
+				con.push_back(str);
+			}
+			else if (idtable.table[i].idtype == IT::IDTYPE::V) {	// переменная
+				switch (idtable.table[i].iddatatype) {
+				case IT::IDDATATYPE::INT: str += " sdword 0";  break;	//sdword 0 - 4 байта со знаком
+				case IT::IDDATATYPE::STR: str += " dword ?";  break;	//dword  4 байта без знака
+				case IT::IDDATATYPE::CHR: str += " dword ?";  break;	//dword  4 байта без знака
+				}
+				data.push_back(str);
+			}
+		}
+		result.insert(result.end(), con.begin(), con.end());	//result.push_back("\n");
+		result.insert(result.end(), data.begin(), data.end());	//result.push_back("\n");
+		for (auto r : result) {
+			*file << r << endl;
+		}
+	}
 
-    // ---------------- HEADER ----------------
-    // Убираем явные extrn для всех runtime-функций из HEADER —
-    // их будем генерировать динамически после анализа idtable,
-    // чтобы избежать конфликта с пользовательскими определениями.
-    static const char* HEADER =
-        ".586\n"
-        ".model flat, stdcall\n"
-        ".stack 4096\n"
-        "includelib kernel32.lib\n"
-        "includelib Library.lib\n\n";
+	void GenCode(LT::LexTable& lextable, IT::IdTable& idtable, ostream* file) {
+		string str;
+		string funcName;	// имя текущей функции
 
-    // forward declarations
-    void GenConstAndData(LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames,
-        bool& hasMain);
+		funcName = "main";
+		str = SEPSTR("MAIN")
+			+ "main PROC\n";
+		*file << str << endl;
+		str = "";
 
-    void GenCode(LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames);
+		for (int i = 0; i < lextable.size; i++) {
+			switch (LT_ENTRY(i).lexema) {
+				case LT_ID: {
+					if (IT_ENTRY(i).idtype == IT::IDTYPE::C) {	// вывод
+						if (LT_ENTRY(i).sign == LT::SIGNATURE::print) {
+							PN::polishNotation(i, lextable, idtable);
+							IT::Entry e = IT_ENTRY(i);
+							switch (e.iddatatype) {
+							case IT::IDDATATYPE::INT:
+									str += "push " + string(e.fullName) + "\ncall write_int";
+								break;
+							case IT::IDDATATYPE::STR:
+								if (e.idtype == IT::IDTYPE::L) {
+									str += "\npush offset " + string(e.fullName) + "\ncall write_str";
+								}
+								else {
+									str += "push " + string(e.fullName) + "\ncall write_str";
+								}
+								break;
+							case IT::IDDATATYPE::CHR:
+								if (e.idtype == IT::IDTYPE::L) {
+									str += "push offset " + string(e.fullName) + "\ncall write_str";
+								}
+								else {
+									str += "push " + string(e.fullName) + "\ncall write_str";
+								}
+								break;
+							}
+						}
+						else {									// вызов
+							PN::polishNotation(i, lextable, idtable);
+							str = GenCallFuncCode(lextable, idtable, i);
+						}
+					}
+					break;
+				}
+				case LT_FUNCTION: {								// объявление функции
+					funcName = IT_ENTRY(i + 2).fullName;
+					str = GenFunctionCode(lextable, idtable, i);
+					break;
+				}
+				case LT_RETURN: {								// return
+					str = GenExitCode(lextable, idtable, i, funcName);
+					break;
+				}
+				case LT_EQUAL: {								// присваивание
+					PN::polishNotation(i + 1, lextable, idtable);
+					str = GenEqualCode(lextable, idtable, i);
+					break;
+				}
+			}
+			if (!str.empty()) {
+				*file << str << endl;
+				str.clear();
+			}
+		}
+	}
 
-    bool GenStatementsRange(int start, int end,
-        LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames);
+	string GenEqualCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i) {
+		string str;
+		IT::Entry e1 = IT_ENTRY(i - 1); // левый операнд
+		i++;
+		switch (e1.iddatatype) {
+		case IT::IDDATATYPE::INT: {
+			for (; LT_ENTRY(i).lexema != LT_SEMICOLON; i++) {
+				switch (LT_ENTRY(i).lexema) {
+				case LT_LITERAL:
+				case LT_ID: {
+					if (IT_ENTRY(i).idtype == IT::IDTYPE::C) {				// если в выражении вызов функции
+						str = str + GenCallFuncCode(lextable, idtable, i);	// функция возвращает результат в eax
+						str = str + "push eax\n";	// результат выражения в стек для дальнейшего вычисления выражения
+						break;
+					}
+					else {
+						str = str + "push " + IT_ENTRY(i).fullName + "\n";
+					}
+					break;
+				}
+				case LT_OP_BINARY:
+					switch (LT_ENTRY(i).sign) {
+					case LT::SIGNATURE::plus:
+						str += "pop ebx\npop eax\nadd eax, ebx\npush eax\n"; break;
+					case LT::SIGNATURE::minus:
+						str += "pop ebx\npop eax\nsub eax, ebx\npush eax\n"; break;
+					case LT::SIGNATURE::multiplication:
+						str += "pop ebx\npop eax\nimul eax, ebx\npush eax\n"; break;
+					case LT::SIGNATURE::division:
+						str += "pop ebx\npop eax\ncdq\nidiv ebx\npush eax\n"; break;
+					}
+				}
+			}
+			str += "pop " + string(e1.fullName) + '\n';
+			break;
+		}
+		case IT::IDDATATYPE::STR: {
+			char lex = LT_ENTRY(i).lexema;
+			IT::Entry e2 = IT_ENTRY(i);
+			if (lex == LT_ID && (e2.idtype == IT::IDTYPE::P)) {	// вызов функции
+				str += GenCallFuncCode(lextable, idtable, i);
+				str += "mov " + string(e1.fullName) + ", eax";
+			}
+			else if (lex == LT_LITERAL) {	// литерал
+				str = "mov " + string(e1.fullName) + ", offset " + string(e2.fullName);
+			}
+			else {							// переменная
+				str += "mov ecx, " + string(e2.fullName) + "\nmov " + string(e1.fullName) + ", ecx";
+			}
+		}
+		}
+		return str;
+	}
 
-    string GenExpression(LT::LexTable& lextable, IT::IdTable& idtable, int& i,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames,
-        IT::IDDATATYPE* outType = nullptr);
+	string GenFunctionCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i) {
+		string str = string(IT_ENTRY(i + 2).fullName) + string(" PROC,\t");
+		//funcName = IT_ENTRY(i + 2).fullName;
+		i += 5; // дальше параметры, сразу после открывающей скобки
 
-    void Generate(LT::LexTable& lextable, IT::IdTable& idtable, std::ostream* stream) {
-        unordered_map<int, string> asmNames;
-        unordered_map<int, string> literalNames;
-        bool hasMain = false;
+		while (LT_ENTRY(i).lexema != LT_RIGHTHESIS) {	// пока параметры не кончатся
+			if (LT_ENTRY(i).lexema == LT_ID) {			// параметр
+				str += string(IT_ENTRY(i).fullName) + (IT_ENTRY(i).iddatatype == IT::IDDATATYPE::INT ? " : sdword, " : " : dword, ");
+			}
+			++i;
+		}
+		str += "\n";
 
-        *stream << HEADER;
-        GenConstAndData(lextable, idtable, stream, asmNames, literalNames, hasMain);
+		return str;
+	}
 
-        // Список runtime-функций, которые могут быть внешними
-        vector<string> runtimeNames = { "ExitProcess", "write_int", "write_str", "get_time", "get_date", "get_char" };
+	string GenExitCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i, string funcname) {
+		string str = "; --- восстановить регистры --- \npop edx \npop ebx \n; -----------------------------\n";
+		if (LT_ENTRY(i + 1).lexema != LT_SEMICOLON) {
+			str += "mov eax, " + string(IT_ENTRY(i + 1).fullName) + "\n";
+		}
 
-        // Собираем имена функций, определённых пользователем, чтобы не объявлять их как extrn
-        unordered_set<string> declaredFuncs;
-        for (int i = 0; i < idtable.size; ++i) {
-            if (idtable.table[i].idtype == IT::F || idtable.table[i].idtype == IT::C) {
-                auto it = asmNames.find(i);
-                if (it != asmNames.end()) declaredFuncs.insert(it->second);
-            }
-        }
+		if (!funcname.empty() && funcname != "main") {
+			str += "ret\n";
+			str += funcname + " ENDP" + SEPSTREMP;
+		}
+		else { }
+		return str;
+	}
 
-        // Выводим extrn только для тех runtime-функций, которые НЕ определены пользователем
-        *stream << "\n";
-        for (const string& rn : runtimeNames) {
-            if (declaredFuncs.count(rn) == 0) {
-                *stream << "extrn " << rn << ":proc\n";
-            }
-        }
-        *stream << "\n";
+	string GenCallFuncCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i) {
+		string str;
+		stack <IT::Entry> temp;
+		for (i++; LT_ENTRY(i).lexema != '@'; i++) {
+			if (LT_ENTRY(i).lexema == LT_ID || LT_ENTRY(i).lexema == LT_LITERAL) {
+				temp.push(IT_ENTRY(i));	// заполняем стек в прямом порядке	
+			}
+		}
+		IT::Entry e = IT_ENTRY(++i);	// идентификатор вызываемой функции
+		while (!temp.empty()) {			// раскручиваем стек
+			if (temp.top().idtype == IT::IDTYPE::L && temp.top().iddatatype == IT::IDDATATYPE::STR ||
+				temp.top().iddatatype == IT::IDDATATYPE::CHR) {	// !!!
+				str += "push offset " + string(temp.top().fullName) + "\n";
+			}
+			else {
+				str += "push " + string(temp.top().fullName) + "\n";
+			}
+			temp.pop();
+		}
 
-        *stream << "\n.code\n";
-        GenCode(lextable, idtable, stream, asmNames, literalNames);
+		str += "call " + string(e.fullName) + '\n';
+		i++;
 
-        if (hasMain) *stream << "end main\n";
-        else *stream << "end\n";
-    }
+		return str;
+	}
 
-    // ---------- .const / .data ----------
-    void GenConstAndData(LT::LexTable& /*lextable*/, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames,
-        bool& hasMain) {
-
-        *file << ".const\n";
-        *file << "\tnewline byte 13, 10, 0\n";
-        *file << "\ttrue_str byte 'true', 0\n";
-        *file << "\tfalse_str byte 'false', 0\n\n";
-
-        int litIndex = 0;
-        for (int i = 0; i < idtable.size; ++i) {
-            const IT::Entry& e = idtable.table[i];
-            if (e.idtype == IT::L || (e.idtype == IT::UNKNOWN && (e.iddatatype == IT::INT || e.iddatatype == IT::STR || e.iddatatype == IT::CHR))) {
-                string lname = GetUniqueLiteralName(e, litIndex++);
-                literalNames[i] = lname;
-                if (e.iddatatype == IT::INT) {
-                    *file << "\t" << lname << " sdword " << e.value.vint << "\n";
-                }
-                else if (e.iddatatype == IT::STR) {
-                    string s = e.value.vstr;
-                    string esc;
-                    for (char c : s) { if (c == '\'') esc += "''"; else esc += c; }
-                    if (esc.empty()) *file << "\t" << lname << " byte 0\n";
-                    else *file << "\t" << lname << " byte '" << esc << "', 0\n";
-                }
-                else if (e.iddatatype == IT::CHR) {
-                    *file << "\t" << lname << " dword " << static_cast<int>(e.value.vchr) << "\n";
-                }
-            }
-        }
-
-        *file << "\n.data\n";
-        *file << "\tswitch_res sdword 0\n";
-
-        // prepare asm names
-        for (int i = 0; i < idtable.size; ++i) {
-            const IT::Entry& e = idtable.table[i];
-            if (e.idtype == IT::F || e.idtype == IT::C) {
-                asmNames[i] = SanitizeName(e.id);
-                if (SanitizeName(e.id) == "main") hasMain = true;
-            }
-            else {
-                asmNames[i] = MakeVarAsmName(e, i);
-            }
-        }
-
-        // declare variables/params/locals (to avoid undefined symbols)
-        unordered_set<string> declared;
-        for (int i = 0; i < idtable.size; ++i) {
-            const IT::Entry& e = idtable.table[i];
-            if (e.idtype == IT::V || e.idtype == IT::P) {
-                string nm = asmNames[i];
-                if (declared.count(nm)) continue;
-                declared.insert(nm);
-
-                if (e.iddatatype == IT::STR) {
-                    *file << "\t" << nm << " dword ?\n";
-                }
-                else if (e.iddatatype == IT::INT) {
-                    // Инициализируем глобальные/локальные числовые переменные нулём по умолчанию,
-                    // чтобы избежать записи мусорных значений в объектный файл.
-                    *file << "\t" << nm << " sdword 0\n";
-                }
-                else if (e.iddatatype == IT::CHR) {
-                    *file << "\t" << nm << " dword 0\n";
-                }
-                else {
-                    *file << "\t" << nm << " dword 0\n";
-                }
-            }
-        }
-
-        *file << "\n";
-    }
-
-    static int FindMatchingRbrace(LT::LexTable& lextable, int pos) {
-        int depth = 0;
-        for (int k = pos; k < lextable.size; ++k) {
-            if (lextable.table[k].lexema == LT_LEFTBRACE) ++depth;
-            else if (lextable.table[k].lexema == LT_RIGHTBRACE) {
-                --depth;
-                if (depth == 0) return k;
-            }
-        }
-        return -1;
-    }
-
-    // ---------- Statements ---------- (returns true if emitted return)
-    bool GenStatementsRange(int start, int end,
-        LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames) {
-
-        int k = start;
-        while (k <= end) {
-            char lex = lextable.table[k].lexema;
-            if (lex == LT_SEMICOLON) { ++k; continue; }
-
-            if (lex == LT_RETURN) {
-                ++k;
-                string expr = GenExpression(lextable, idtable, k, asmNames, literalNames);
-                *file << expr;
-                *file << "\tpop eax\n\tret\n";
-                return true;
-            }
-
-            if (lex == LT_ID && (k + 1 <= end) && lextable.table[k + 1].lexema == LT_EQUAL) {
-                int leftIdx = lextable.table[k].idxIT;
-                k += 2;
-                string expr = GenExpression(lextable, idtable, k, asmNames, literalNames);
-                *file << expr;
-                *file << "\tpop eax\n\tmov " << asmNames[leftIdx] << ", eax\n";
-                if (k <= end && lextable.table[k].lexema == LT_SEMICOLON) ++k;
-                continue;
-            }
-
-            if (lex == LT_FOR) {
-                int p = k + 1;
-                if (p < lextable.size && lextable.table[p].lexema == LT_TYPE) ++p;
-                if (p < lextable.size && lextable.table[p].lexema == LT_ID) {
-                    int idIdx = lextable.table[p].idxIT;
-                    ++p;
-                    if (p < lextable.size && lextable.table[p].lexema == LT_EQUAL) ++p;
-                    string startExpr = GenExpression(lextable, idtable, p, asmNames, literalNames);
-                    while (p < lextable.size && lextable.table[p].lexema != LT_RANGE) ++p;
-                    if (p < lextable.size && lextable.table[p].lexema == LT_RANGE) ++p;
-                    string endExpr = GenExpression(lextable, idtable, p, asmNames, literalNames);
-                    while (p < lextable.size && lextable.table[p].lexema != LT_LEFTBRACE) ++p;
-                    int braceOpen = p;
-                    int braceClose = FindMatchingRbrace(lextable, braceOpen);
-                    if (braceOpen >= 0 && braceClose >= 0) {
-                        static int loopCounter = 0;
-                        int loopId = loopCounter++;
-                        string labelStart = "LOOP_START_" + to_string(loopId);
-                        string labelEnd = "LOOP_END_" + to_string(loopId);
-
-                        *file << startExpr;
-                        *file << "\tpop eax\n\tmov " << asmNames[idIdx] << ", eax\n";
-                        *file << labelStart << ":\n";
-                        *file << "\tmov eax, " << asmNames[idIdx] << "\n";
-                        *file << endExpr;
-                        *file << "\tpop ebx\n";
-                        *file << "\tcmp eax, ebx\n";
-                        *file << "\tjg " << labelEnd << "\n";
-
-                        bool bodyReturned = GenStatementsRange(braceOpen + 1, braceClose - 1, lextable, idtable, file, asmNames, literalNames);
-                        if (bodyReturned) {
-                            *file << labelEnd << ":\n";
-                            k = braceClose + 1;
-                            continue;
-                        }
-                        *file << "\tinc " << asmNames[idIdx] << "\n";
-                        *file << "\tjmp " << labelStart << "\n";
-                        *file << labelEnd << ":\n";
-                    }
-                    k = (braceClose > 0 ? braceClose + 1 : p);
-                    continue;
-                }
-            }
-
-            if (lex == LT_LITERAL || lex == LT_ID) {
-                string code = GenExpression(lextable, idtable, k, asmNames, literalNames);
-                *file << code;
-                if (k < (int)lextable.size && lextable.table[k].lexema == LT_SEMICOLON) {
-                    *file << "\tpop eax\n";
-                    ++k;
-                }
-                continue;
-            }
-
-            ++k;
-        }
-        return false;
-    }
-
-    // ---------- Function block (plain label, no PROC/ENDP) ----------
-    static void GenerateFunctionBlock(int& i, LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames) {
-
-        bool isMain = (lextable.table[i].lexema == LT_MAIN);
-
-        int funcIdIdx = -1;
-        for (int k = i; k < lextable.size; ++k) {
-            if (lextable.table[k].lexema == LT_ID) {
-                int idx = lextable.table[k].idxIT;
-                if (idx >= 0 && idx < idtable.size) {
-                    if (idtable.table[idx].idtype == IT::F || idtable.table[idx].idtype == IT::C) { funcIdIdx = idx; break; }
-                    if (lextable.table[k + 1].lexema == LT_LEFTHESIS || lextable.table[k + 1].lexema == LT_LEFTBRACE) { funcIdIdx = idx; break; }
-                }
-            }
-            if (lextable.table[k].lexema == LT_LEFTBRACE) break;
-        }
-
-        string funcAsmName;
-        if (isMain) funcAsmName = "main";
-        else if (funcIdIdx >= 0) funcAsmName = asmNames[funcIdIdx];
-        else funcAsmName = "func_unknown_" + to_string(i);
-
-        // emit label instead of PROC to avoid MASM PROC/PROTO conflicts
-        *file << funcAsmName << ":\n";
-
-        // find '{'
-        int bracePos = -1;
-        for (int k = i; k < lextable.size; ++k) if (lextable.table[k].lexema == LT_LEFTBRACE) { bracePos = k; break; }
-        if (bracePos == -1) { *file << "\tret\n"; return; }
-
-        int endBrace = FindMatchingRbrace(lextable, bracePos);
-        if (endBrace == -1) endBrace = bracePos;
-
-        bool bodyReturned = GenStatementsRange(bracePos + 1, endBrace - 1, lextable, idtable, file, asmNames, literalNames);
-
-        if (!bodyReturned) {
-            if (isMain) {
-                *file << "\tpush 0\n\tcall ExitProcess\n";
-            }
-            else {
-                *file << "\tret\n";
-            }
-        }
-
-        i = endBrace;
-    }
-
-    // ---------- Top-level ----------
-    void GenCode(LT::LexTable& lextable, IT::IdTable& idtable, ostream* file,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames) {
-
-        for (int i = 0; i < lextable.size; ++i) {
-            char lex = lextable.table[i].lexema;
-            if (lex == LT_FUNCTION || lex == LT_MAIN) {
-                GenerateFunctionBlock(i, lextable, idtable, file, asmNames, literalNames);
-            }
-        }
-    }
-
-    // ---------- Expressions ----------
-    string GenExpression(LT::LexTable& lextable, IT::IdTable& idtable, int& i,
-        unordered_map<int, string>& asmNames,
-        unordered_map<int, string>& literalNames,
-        IT::IDDATATYPE* outType) {
-
-        string code;
-        IT::IDDATATYPE currentType = IT::INT;
-
-        while (i < lextable.size) {
-            char lex = lextable.table[i].lexema;
-            if (lex == LT_SEMICOLON || lex == LT_COMMA || lex == LT_RIGHTHESIS || lex == LT_RIGHTBRACE || lex == LT_LEFTBRACE) break;
-
-            if (lex == LT_LITERAL || lex == LT_ID) {
-                int idx = lextable.table[i].idxIT;
-                if (idx >= 0 && idx < idtable.size) {
-                    const IT::Entry& e = idtable.table[idx];
-                    if (e.idtype == IT::L || (e.idtype == IT::UNKNOWN && (e.iddatatype == IT::INT || e.iddatatype == IT::STR || e.iddatatype == IT::CHR))) {
-                        string lname = literalNames.at(idx);
-                        if (e.iddatatype == IT::STR) { code += "\tpush offset " + lname + "\n"; currentType = IT::STR; }
-                        else { code += "\tpush " + lname + "\n"; currentType = IT::INT; }
-                        ++i; continue;
-                    }
-                    else if (e.idtype == IT::V || e.idtype == IT::P) {
-                        string an = asmNames.at(idx);
-                        code += "\tpush " + an + "\n";
-                        currentType = e.iddatatype;
-                        ++i; continue;
-                    }
-                    else if (e.idtype == IT::C || e.idtype == IT::F) {
-                        int p = i + 1;
-                        bool hasParen = (p < lextable.size && lextable.table[p].lexema == LT_LEFTHESIS);
-                        if (hasParen) {
-                            p++;
-                            vector<string> args;
-                            vector<IT::IDDATATYPE> argTypes;
-                            if (p < lextable.size && lextable.table[p].lexema != LT_RIGHTHESIS) {
-                                while (p < lextable.size) {
-                                    IT::IDDATATYPE at = IT::INT;
-                                    string argCode = GenExpression(lextable, idtable, p, asmNames, literalNames, &at);
-                                    args.push_back(argCode);
-                                    argTypes.push_back(at);
-                                    if (p < lextable.size && lextable.table[p].lexema == LT_COMMA) { ++p; continue; }
-                                    if (p < lextable.size && lextable.table[p].lexema == LT_RIGHTHESIS) break;
-                                    break;
-                                }
-                            }
-                            for (int k = (int)args.size() - 1; k >= 0; --k) code += args[k];
-                            int totalArgBytes = static_cast<int>(args.size()) * 4;
-                            string funcSan = SanitizeName(e.id);
-                            string funcAsm = asmNames.count(idx) ? asmNames[idx] : funcSan;
-                            if (funcSan == "print") {
-                                if (!argTypes.empty() && argTypes[0] == IT::STR) {
-                                    code += "\tcall write_str\n";
-                                    code += "\tadd esp, " + to_string(totalArgBytes) + "\n";
-                                    code += "\tpush offset newline\n\tcall write_str\n\tadd esp, 4\n";
-                                    code += "\tpush 0\n";
-                                    currentType = IT::INT;
-                                }
-                                else {
-                                    code += "\tcall write_int\n";
-                                    code += "\tadd esp, " + to_string(totalArgBytes) + "\n";
-                                    code += "\tpush offset newline\n\tcall write_str\n\tadd esp, 4\n";
-                                    code += "\tpush 0\n";
-                                    currentType = IT::INT;
-                                }
-                            }
-                            else {
-                                code += "\tcall " + funcAsm + "\n";
-                                if (totalArgBytes > 0) code += "\tadd esp, " + to_string(totalArgBytes) + "\n";
-                                code += "\tpush eax\n";
-                                currentType = e.iddatatype;
-                            }
-                            i = p; ++i; continue;
-                        }
-                        else {
-                            string funcSan = SanitizeName(e.id);
-                            string funcAsm = asmNames.count(idx) ? asmNames[idx] : funcSan;
-                            if (funcSan == "print") {
-                                if (currentType == IT::STR) code += "\tcall write_str\n";
-                                else code += "\tcall write_int\n";
-                                code += "\tadd esp, 4\n";
-                                code += "\tpush offset newline\n\tcall write_str\n\tadd esp, 4\n";
-                                code += "\tpush 0\n";
-                                currentType = IT::INT;
-                            }
-                            else {
-                                code += "\tcall " + funcAsm + "\n";
-                                code += "\tpush eax\n";
-                                currentType = e.iddatatype;
-                            }
-                            ++i; continue;
-                        }
-                    }
-                }
-                else { ++i; continue; }
-            }
-
-            if (lex == LT_OP_UNARY) {
-                LT::SIGNATURE sig = (LT::SIGNATURE)lextable.table[i].sign;
-                if (sig == LT::SIGNATURE::increment) { code += "\tpop eax\n\tinc eax\n\tpush eax\n"; }
-                else if (sig == LT::SIGNATURE::inversion) { code += "\tpop eax\n\tnot eax\n\tpush eax\n"; }
-                else if (sig == LT::SIGNATURE::minus) { code += "\tpop eax\n\tneg eax\n\tpush eax\n"; }
-                else { code += "\t; unknown unary\n"; }
-                ++i; continue;
-            }
-
-            if (lextable.table[i].lexema == LT_OP_BINARY) {
-                LT::SIGNATURE sig = (LT::SIGNATURE)lextable.table[i].sign;
-                code += "\tpop ebx\n\tpop eax\n";
-                static int __div_lab = 0;
-                if (sig == LT::SIGNATURE::plus) code += "\tadd eax, ebx\n";
-                else if (sig == LT::SIGNATURE::minus) code += "\tsub eax, ebx\n";
-                else if (sig == LT::SIGNATURE::multiplication) code += "\timul ebx\n";
-                else if (sig == LT::SIGNATURE::division) {
-                    int id = __div_lab++;
-                    string ok = "DIV_OK_" + to_string(id);
-                    string end = "DIV_END_" + to_string(id);
-                    code += "\ttest ebx, ebx\n\tjnz " + ok + "\n";
-                    code += "\tpush 0\n\tjmp " + end + "\n";
-                    code += ok + ":\n\tcdq\n\tidiv ebx\n";
-                    code += end + ":\n";
-                }
-                code += "\tpush eax\n";
-                currentType = IT::INT;
-                ++i; continue;
-            }
-
-            ++i;
-        }
-
-        if (outType) *outType = currentType;
-        return code;
-    }
-
-} // namespace GN
-
-// Global wrapper
-extern "C" void Generate(LT::LexTable& lextable, IT::IdTable& idtable, std::ostream* stream) {
-    GN::Generate(lextable, idtable, stream);
+	string itoS(int x) //чтобы избежать дублирования меток
+	{
+		stringstream r;  r << x;  return r.str();
+	}
 }
+
+

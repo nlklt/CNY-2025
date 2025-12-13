@@ -32,11 +32,6 @@ namespace LT {
     {
         sign,
 
-        variable,
-        function,
-        parameter,
-        call,
-
         t_int,
         t_char,
         t_string,
@@ -64,7 +59,7 @@ namespace LT {
         char lexema = '-';              // один символ - лексема
         char sign   = SIGNATURE::sign;  // знак лексемы
         int  sn     = -1;               // номер строки
-        int  tn     = -1;               // номер строки
+        int  tn     = -1;               // номер токена
         int  idxIT  = -1;               // индекс  в таблице идентификаторов
 
         Entry() = default;

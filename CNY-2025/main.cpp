@@ -42,7 +42,6 @@ int wmain(int argc, wchar_t* argv[]) {
         Lexer::lexicalAnalysis(in, lextable, idtable);
 
         Log::WriteLex(log, lextable, &idtable);
-        Log::WriteIdTable(log, idtable);
         Log::WriteLexTable(log, lextable, &idtable);
 
         MFST::Mfst mfst(lextable, GRB::getGreibach());
@@ -79,10 +78,6 @@ int wmain(int argc, wchar_t* argv[]) {
 
         std::cout << "Успешное завершение.";
 
-        Log::WriteLex(log, lextable, &idtable);
-        Log::WriteIdTable(log, idtable);
-        Log::WriteLexTable(log, lextable, &idtable);
-
         Log::WriteLine(log, (char*)"Успешное завершение.", "");
         Log::Close(log);
 
@@ -92,7 +87,7 @@ int wmain(int argc, wchar_t* argv[]) {
             std::cout << "Ошибка: Не удалось открыть файл " << parm.out << std::endl;
         }
 
-        GN::Generate(lextable, idtable, &asmFile);
+        GN::GenerationASM(&asmFile, lextable, idtable);
 
         LT::Delete(lextable);
         IT::Delete(idtable);

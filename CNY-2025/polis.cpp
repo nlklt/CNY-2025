@@ -33,7 +33,6 @@ namespace PN
         stack<LT::Entry> ops;            // стек операторов и имён функций
         vector<LT::Entry> out;           // выход (ОПН)
         stack<int> paramCount;           // стек счётчиков аргументов для функций
-        // Не кладём начальный 0 — создаём запись для скобок только при встрече '('
 
         // находим конец выражения (';')
         int exprEndIdx = pos;
@@ -45,9 +44,8 @@ namespace PN
             LT::Entry lex = lextable.table[i];
             char lx = lex.lexema;
 
-            // идентификатор или литерал
+            // --- операнд: идентификатор или литерал
             if (lx == 'i' || lx == 'l') {
-                // если след. лексема — '(', то это возможно имя функции; смотрим в idtable
                 bool nextIsLeftParen = (i + 1 < exprEndIdx && lextable.table[i + 1].lexema == '(');
                 bool isFuncName = false;
                 if (lx == 'i' && lex.idxIT != IT_NULLIDX && nextIsLeftParen) {
@@ -55,7 +53,7 @@ namespace PN
                 }
 
                 if (isFuncName) {
-                    ops.push(lex); // имя функции во стек (будет обработано при ')')
+                    ops.push(lex); // имя функции во стек
                     lastLexemaWasOperand = false;
                 }
                 else {
@@ -65,38 +63,32 @@ namespace PN
                 continue;
             }
 
-            // открывающая скобка
+            // --- открывающая скобка
             if (lx == '(') {
-                // определяем, является ли скобка аргументацией функции: если над ней в стеке лежит имя функции
                 bool isFuncArgs = (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX
                     && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::C);
 
                 ops.push(lex);
-
-                if (isFuncArgs)
-                    paramCount.push(0); // начинаем считать аргументы для функции
-                else
-                    paramCount.push(-1); // обычные скобки
+                if (isFuncArgs) paramCount.push(0);
+                else paramCount.push(-1);
 
                 lastLexemaWasOperand = false;
                 continue;
             }
 
-            // закрывающая скобка
+            // --- закрывающая скобка
             if (lx == ')') {
-                // выталкиваем операторы до '('
                 while (!ops.empty() && ops.top().lexema != '(') {
                     out.push_back(ops.top()); ops.pop();
                 }
 
-                // удаляем '('
                 if (!ops.empty() && ops.top().lexema == '(') ops.pop();
 
                 if (!paramCount.empty()) {
                     int cnt = paramCount.top(); paramCount.pop();
 
                     if (cnt != -1) {
-                        // это была аргументация функции
+                        // аргументация функции: если последний был операнд, учитываем его
                         int finalArgCount = cnt + (lastLexemaWasOperand ? 1 : 0);
 
                         // над '(' в стеке должно быть имя функции
@@ -105,22 +97,19 @@ namespace PN
 
                             LT::Entry funcName = ops.top(); ops.pop();
 
-                            // запись: сначала количество аргументов, затем операция вызова '@', затем имя функции
-                            LT::Entry countLex = lex;
-                            countLex.idxIT = IT_NULLIDX;
-                            // ограничимся 0..9 символом, >9 пометим как '!' (можно изменить на другой подход)
-                            countLex.lexema = (finalArgCount <= 9) ? (char)('0' + finalArgCount) : '!';
-                            out.push_back(countLex);
+                            // помечаем вызов: сначала оператор '@' (вызов), затем имя функции
+                            LT::Entry callOp = lex;
+                            callOp.lexema = '@';
+                            callOp.idxIT = IT_NULLIDX;
+                            // (при желании можно положить finalArgCount в какое-то поле callOp, если нужно)
 
-                            LT::Entry callOp = lex; callOp.idxIT = IT_NULLIDX; callOp.lexema = '@';
                             out.push_back(callOp);
-
                             out.push_back(funcName);
 
                             lastLexemaWasOperand = true;
                         }
                         else {
-                            // имя функции не найдено — безопасно считаем результат операндом
+                            // имя функции не найдено — считаем, что выражение внутри скобок — операнд
                             lastLexemaWasOperand = true;
                         }
                     }
@@ -132,11 +121,9 @@ namespace PN
                 continue;
             }
 
-            // запятая — разделитель параметров
+            // --- запятая (разделитель параметров)
             if (lx == ',') {
-                // выталкиваем операторы до ближайшей '('
                 while (!ops.empty() && ops.top().lexema != '(') { out.push_back(ops.top()); ops.pop(); }
-                // если текущие скобки — аргументы функции, увеличиваем счётчик
                 if (!paramCount.empty() && paramCount.top() != -1) {
                     int c = paramCount.top(); paramCount.pop(); paramCount.push(c + 1);
                 }
@@ -144,11 +131,15 @@ namespace PN
                 continue;
             }
 
-            // операторы (универсальная обработка бинарных/унарных)
-            if (lx == 'v' || lx == 'u' || lx == '+' || lx == '-' || lx == '*' || lx == '/') {
-                // Учет приоритета: если верх стека имеет приоритет >= текущего и это не '(', выталкиваем
-                while (!ops.empty() && ops.top().lexema != '(' && priority(ops.top()) >= priority(lex)) {
-                    out.push_back(ops.top()); ops.pop();
+            // --- операторы: определим наличие оператора по приоритету
+            int pcur = priority(lex);
+            if (pcur > 0) {
+                // выталкиваем из стека все операторы с приоритетом >= текущего (левоассоциативность)
+                while (!ops.empty() && ops.top().lexema != '(') {
+                    int ptop = priority(ops.top());
+                    if (ptop < 0) break; // не оператор
+                    if (ptop >= pcur) { out.push_back(ops.top()); ops.pop(); }
+                    else break;
                 }
                 ops.push(lex);
                 lastLexemaWasOperand = false;
@@ -164,20 +155,25 @@ namespace PN
             out.push_back(ops.top()); ops.pop();
         }
 
-        // перезапись lextable (проверяем границы)
+        // проверка размеров и копирование результата обратно в lextable
         int outSize = (int)out.size();
+        // проверка, что мы не выйдем за пределы
+        if (pos + outSize > lextable.size) ERROR_THROW(102);
+
         for (int k = 0; k < outSize; ++k) {
-            if (pos + k < lextable.size) lextable.table[pos + k] = out[k];
-            else ERROR_THROW(102);
+            // перезаписываем ячейку полностью (чтобы не осталось древних полей)
+            lextable.table[pos + k] = out[k];
         }
 
         // очищаем следующее пространство до ';'
         for (int k = pos + outSize; k < exprEndIdx; ++k) {
             lextable.table[k].lexema = '#';
             lextable.table[k].idxIT = IT_NULLIDX;
-            // при необходимости обнулять и другие поля (sign, value и т.д.)
+            lextable.table[k].sign = 0;
+            // обнуляем другие поля по необходимости (value, line, tn ...)
         }
 
         return true;
     }
 }
+

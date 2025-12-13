@@ -38,5 +38,4 @@ namespace Log
     // Таблицы (WriteLexTable может принимать дополнительную таблицу идентификаторов для расширенного вывода)
     void WriteLexTable(LOG log, LT::LexTable& lt, IT::IdTable* it = nullptr);
     void WriteLex(LOG log, LT::LexTable& lt, IT::IdTable* it = nullptr);
-    void WriteIdTable(LOG log, IT::IdTable& it);
 }

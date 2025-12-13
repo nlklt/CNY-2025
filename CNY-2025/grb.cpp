@@ -17,6 +17,7 @@ namespace GRB
 			Rule(NS('S'), GRB_ERROR_SERIES + 0, {	// Неверная тсруктура программы
 
 					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
+					{ TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
 					{ TS('t'), TS('i'), TS(';'), NS('S') },
 					{ TS('f'), TS('t'), TS('i'), NS('F'), TS('{'), NS('N'), TS('}'), NS('S')},
 					{ TS('t'), TS('m'), TS('('), TS(')'), TS('{'), NS('N'), TS('}'), NS('S') },

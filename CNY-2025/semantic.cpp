@@ -88,13 +88,6 @@ namespace SM
                 int id = lex.idxIT;
                 ITEntry& e = idtable.table[id];
 
-
-                if (e.id == "print") {
-                    isExpression = true;
-                    posExpression = i;
-                    continue;
-                }
-
                 if (e.idtype == IT::IDTYPE::V) {
                     bool isDecl = (i - 1 >= 0 && lextable.table[i - 1].lexema == 't');
                     bool isLHS = (i + 1 < lextable.size && lextable.table[i + 1].lexema == '=');
@@ -128,10 +121,6 @@ namespace SM
                     }
                 }
                 else if (e.idtype == IT::IDTYPE::C) {
-                    if (e.id == "print") {
-                        isExpression = true;
-                        posExpression = i;
-                    }
                     if (e.isDefined) {
                         int k = lex.idxIT;
                         int t = 0;
@@ -166,12 +155,6 @@ namespace SM
                 }
                 else if (e.idtype != IT::IDTYPE::P){
                    reportError(777, lex.sn, lex.tn, "Неопределенный идентификатор.");
-                }
-            }
-            if (lx == ';') {
-                if (isExpression == true) {
-                    PN::polishNotation(posExpression, lextable, idtable);
-                    isExpression = false;
                 }
             }
         }

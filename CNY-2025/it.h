@@ -17,12 +17,12 @@
 //таблица идентификаторов
 namespace IT {
     enum IDTYPE { V, F, P, C, L, UNKNOWN };
-    enum IDDATATYPE { INT, CHR, STR, NONE, UNDEF };
+    enum IDDATATYPE { INT, CHR, STR, ANY, NONE, UNDEF };
 
     struct Entry {
         int         idxfirstLT = -1;
         std::string id         = "-";
-        std::string scope      = "-";
+        std::string fullName   = "-";
         IDTYPE      idtype     = UNKNOWN;
         IDDATATYPE  iddatatype = UNDEF;
         struct Value
@@ -34,20 +34,16 @@ namespace IT {
         struct Params
         {
             int count = -1;
-            std::vector<IDDATATYPE> types;
+            std::vector<IDDATATYPE> types = {};
         } params;
-        std::string fullName = "-";
         bool isDefined = false;
 
         Entry() = default;
 
-        Entry(int idxfirstLT_, const std::string& id_, const std::string& scope_,
-            IDTYPE idtype_, IDDATATYPE iddatatype_, const std::string& fullName_)
-            : idxfirstLT(idxfirstLT_), id(id_), scope(scope_),
-            idtype(idtype_), iddatatype(iddatatype_), fullName(fullName_) { }
-
-        Entry(int idxfirstLT_, const std::string& id_, IDTYPE idtype_, IDDATATYPE iddatatype_)
-            : idxfirstLT(idxfirstLT_), id(id_), idtype(idtype_), iddatatype(iddatatype_) { }
+        Entry(int idxfirstLT_, std::string& id_, std::string& fullName_,
+            IDTYPE idtype_, IDDATATYPE iddatatype_)
+            : idxfirstLT(idxfirstLT_), id(id_), fullName(fullName_),
+            idtype(idtype_), iddatatype(iddatatype_) { }
     };
 
     struct IdTable {
@@ -60,7 +56,5 @@ namespace IT {
     void Add(IdTable& idtable, Entry& entry);
     Entry GetEntry(IdTable& idtable, int n);
     int IsId(IdTable& idtable, std::string fullName);
-    //const char* GetDataTypeString(int iddatatype);
-    //const char* GetIdTypeString(int idtype);
     void Delete(IdTable& idtable);
 }

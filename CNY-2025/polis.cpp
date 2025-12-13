@@ -82,7 +82,9 @@ namespace PN
                     out.push_back(ops.top()); ops.pop();
                 }
 
-                if (!ops.empty() && ops.top().lexema == '(') ops.pop();
+                if (!ops.empty() && ops.top().lexema == '(') {
+                    ops.pop();
+                }
 
                 if (!paramCount.empty()) {
                     int cnt = paramCount.top(); paramCount.pop();

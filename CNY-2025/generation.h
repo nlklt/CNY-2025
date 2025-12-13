@@ -1,4 +1,12 @@
 #pragma once
+
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <stack>
+#include <stdexcept>
+
 #include "lt.h"
 #include "it.h"
 #include "polis.h"
@@ -9,7 +17,7 @@
 #define SEPSTREMP  ";------------------------------\n"
 #define SEPSTR(x)  (std::string("\n;----------- ") + std::string(x) + " ------------\n")
 
-#define BEGIN			  ".586\n"\
+#define BEGIN			  ".386\n"\
 					   << ".model flat, stdcall		\n"\
 					   << "includelib kernel32.lib	\n"\
 					   << "includelib libucrt.lib	\n"\
@@ -17,16 +25,18 @@
 \
 					   << "ExitProcess PROTO: dword	\n"
 
-#define EXTERN			  "EXTRN write_int: proc\n"\
-					   << "EXTRN write_str: proc\n"
+#define EXTERN			  "write_int PROTO C :sword\n"\
+					   << "write_str PROTO C :ptr byte\n"\
+					   << "get_time PROTO C	\n"\
+					   << "get_date PROTO C\n"
 
 #define STACK(value)	".stack 4096 \n"
 
-#define CONST			".const"
+#define CONST			"\n.const"
 
-#define DATA			".data"
+#define DATA			"\n.data"
 
-#define CODE			".code"
+#define CODE			"\n.code"
 
 #define END				"push 0\ncall ExitProcess\nmain ENDP\nend main"
 

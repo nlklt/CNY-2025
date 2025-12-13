@@ -125,7 +125,7 @@ namespace Lexer
                     // наличие в таблице с учетом области видимости
                     std::vector<std::string> copyScope = scopeStack;
                     int idxIT = IT_NULLIDX;
-                    while (!copyScope.empty()) {
+                    while (!copyScope.empty() && lt.table[lt.size - 1].lexema != LT_TYPE) {
                         currScope = copyScope.back();
                         copyScope.pop_back();
                         fullName = currScope + "$" + word;

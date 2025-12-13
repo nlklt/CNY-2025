@@ -1,52 +1,65 @@
 function int arithmetic_test(int a, int b) {
-	int c = a + b;
-	print("; 5 + 3 = ");
+	int c = 6 / b;
+	print("; 6 / 3 = ");
 	print(c);
-	int c = a - b;
-	print("; 5 - 3 = ");
+	c = 9 / b;
+	print("; 9 / 3 = ");
 	print(c);
-	int c = a * b;
-	print("; 5 * 3 = ");
+	c = 7 / b;
+	print("; 7 / 3 = ");
 	print(c);
-	int c = a / b;
-	print("; 5 / 3 = ");
-	print(c);
-	int c = a / b * 8;
+	c = a / b * 8;
 	print("; 5 / 3 * 8 = ");
 	print(c);
-	int c = a / (b * 8);
+	c = a / (b * 8);
 	print("; 5 / (3 * 8) = ");
 	print(c);
-	int c = 4 + a / b * 8;
+	c = 4 + a / b * 8;
 	print("; 4 + 5 / 3 * 8 = ");
 	print(c);
-	int c = (4 + a) / b * 8;
+	c = (4 + a) / b * 8;
 	print("; (4 + 5) / 3 * 8 = ");
 	print(c);
-	int c = (4 + a) / (b * 8);
-	print("; (4 + 5) / (3 * 8) = ");
+	c = 4 / b;
+	print("; 4 / 3 = ");
 	print(c);
 
 	return 0;
 }
 
-int a_int = -4;
-int b_int = 0;
-int e_int = -0o12;
-
-string c_string = "פûגא";
-string d_string = "";
-
 int main() {
-	int c_int = 12;
-	int d_int = 0o12;
-	string a_string = "s";
-	string b_string = "abcd";
 
 	int a = 5;
 	int b = 3;
-	int res = arithmetic_test(5, b);
-	print(res);
+	int c = 6 / b;
+	print("; 6 / 3 = ");
+	print(c);
+	c = 9 / b;
+	print("; 9 / 3 = ");
+	print(c);
+	c = 7 / b;
+	print("; 7 / 3 = ");
+	print(c);
+	c = a / b * 8;
+	print("; 5 / 3 * 8 = ");
+	print(c);
+	c = a / (b * 8);
+	print("; 5 / (3 * 8) = ");
+	print(c);
+	c = 4 + a / b * 8;
+	print("; 4 + 5 / 3 * 8 = ");
+	print(c);
+	c = (4 + a) / b * 8;
+	print("; (4 + 5) / 3 * 8 = ");
+	print(c);
+	c = (4 + a) / (b * 8);
+	print("; (4 + 5) / (3 * 8) = ");
+	print(c);
+	print("\------------\");
+
+	c = arithmetic_test(a, b);
+	print("\------------\");
+	print(c);
 
 	return 10;
 }

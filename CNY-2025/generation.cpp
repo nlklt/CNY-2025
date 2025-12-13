@@ -1,4 +1,5 @@
 #include "generation.h"
+#include "error.h"
 #include <vector>
 #include <stack>
 #include <sstream>
@@ -64,14 +65,14 @@ namespace GN
 		string str;
 		string funcName;	// им€ текущей функции
 
-		funcName = "main";
-		str = SEPSTR("MAIN")
-			+ "main PROC\n";
-		*file << str << endl;
-		str = "";
-
 		for (int i = 0; i < lextable.size; i++) {
 			switch (LT_ENTRY(i).lexema) {
+				case LT_MAIN: {
+					funcName = "main";
+					str = SEPSTR("MAIN")
+						+ "main PROC\n";
+					break;
+				}
 				case LT_ID: {
 					if (IT_ENTRY(i).idtype == IT::IDTYPE::C) {	// вывод
 						if (LT_ENTRY(i).sign == LT::SIGNATURE::print) {
@@ -79,22 +80,22 @@ namespace GN
 							IT::Entry e = IT_ENTRY(i);
 							switch (e.iddatatype) {
 							case IT::IDDATATYPE::INT:
-									str += "push " + string(e.fullName) + "\ncall write_int";
+									str += "push " + string(e.fullName) + "\ncall write_int\nadd esp, 4";
 								break;
 							case IT::IDDATATYPE::STR:
 								if (e.idtype == IT::IDTYPE::L) {
-									str += "\npush offset " + string(e.fullName) + "\ncall write_str";
+									str += "\npush offset " + string(e.fullName) + "\ncall write_str\nadd esp, 4";
 								}
 								else {
-									str += "push " + string(e.fullName) + "\ncall write_str";
+									str += "push " + string(e.fullName) + "\ncall write_str\nadd esp, 4";
 								}
 								break;
 							case IT::IDDATATYPE::CHR:
 								if (e.idtype == IT::IDTYPE::L) {
-									str += "push offset " + string(e.fullName) + "\ncall write_str";
+									str += "push offset " + string(e.fullName) + "\ncall write_str\nadd esp, 4";
 								}
 								else {
-									str += "push " + string(e.fullName) + "\ncall write_str";
+									str += "push " + string(e.fullName) + "\ncall write_str\nadd esp, 4";
 								}
 								break;
 							}
@@ -138,14 +139,12 @@ namespace GN
 				switch (LT_ENTRY(i).lexema) {
 				case LT_LITERAL:
 				case LT_ID: {
-					if (IT_ENTRY(i).idtype == IT::IDTYPE::C) {				// если в выражении вызов функции
-						str = str + GenCallFuncCode(lextable, idtable, i);	// функци€ возвращает результат в eax
-						str = str + "push eax\n";	// результат выражени€ в стек дл€ дальнейшего вычислени€ выражени€
-						break;
-					}
-					else {
-						str = str + "push " + IT_ENTRY(i).fullName + "\n";
-					}
+					str = str + "push " + IT_ENTRY(i).fullName + "\n";
+					break;
+				}
+				case '@': {				// вызов функции
+					str += "call " + string(IT_ENTRY(++i).fullName) + '\n';
+					str = str + "push eax\n";	// результат выражени€ в стек дл€ дальнейшего вычислени€ выражени€
 					break;
 				}
 				case LT_OP_BINARY:
@@ -183,57 +182,140 @@ namespace GN
 	}
 
 	string GenFunctionCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i) {
-		string str = string(IT_ENTRY(i + 2).fullName) + string(" PROC,\t");
-		//funcName = IT_ENTRY(i + 2).fullName;
-		i += 5; // дальше параметры, сразу после открывающей скобки
+		std::vector<std::string> args;
+		string funcName = IT_ENTRY(i + 2).fullName;
+		string arg = "";
+		string str = "\n" + funcName + " PROC, ";
+		i += 5; // ѕереход к параметрам
 
-		while (LT_ENTRY(i).lexema != LT_RIGHTHESIS) {	// пока параметры не кончатс€
-			if (LT_ENTRY(i).lexema == LT_ID) {			// параметр
-				str += string(IT_ENTRY(i).fullName) + (IT_ENTRY(i).iddatatype == IT::IDDATATYPE::INT ? " : sdword, " : " : dword, ");
+		bool first = true;
+		while (i < lextable.size && LT_ENTRY(i).lexema != LT_RIGHTHESIS) {
+			if (LT_ENTRY(i).lexema == LT_ID) {
+				arg = (string(IT_ENTRY(i).fullName) + (IT_ENTRY(i).iddatatype == IT::IDDATATYPE::INT ? " : sdword" : " : dword"));
+				if (first) { first = false; }
+				else { arg += ", "; }
+				args.push_back(arg);
 			}
 			++i;
 		}
-		str += "\n";
 
+		for (int k = (int)args.size() - 1; k >= 0; --k) {
+			str += args[k];
+		}
+		
+		str += "\n\tpush ebp\n\n";
+		str += "\tpush ebx\n\tpush esi\n\tpush edi\n";
 		return str;
 	}
 
-	string GenExitCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i, string funcname) {
-		string str = "; --- восстановить регистры --- \npop edx \npop ebx \n; -----------------------------\n";
-		if (LT_ENTRY(i + 1).lexema != LT_SEMICOLON) {
-			str += "mov eax, " + string(IT_ENTRY(i + 1).fullName) + "\n";
-		}
-
-		if (!funcname.empty() && funcname != "main") {
-			str += "ret\n";
-			str += funcname + " ENDP" + SEPSTREMP;
-		}
-		else { }
-		return str;
-	}
 
 	string GenCallFuncCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i) {
 		string str;
-		stack <IT::Entry> temp;
-		for (i++; LT_ENTRY(i).lexema != '@'; i++) {
-			if (LT_ENTRY(i).lexema == LT_ID || LT_ENTRY(i).lexema == LT_LITERAL) {
-				temp.push(IT_ENTRY(i));	// заполн€ем стек в пр€мом пор€дке	
+		vector<IT::Entry> args;
+
+		// i указывает на исходную позицию (обычно позици€ до operand list), переходим к следующему токену
+		++i;
+		// собираем аргументы до маркера '@' (у PN должен быть такой маркер)
+		while (i < lextable.size && lextable.table[i].lexema != '@') {
+			char lx = lextable.table[i].lexema;
+			if (lx == LT_ID || lx == LT_LITERAL) {
+				// убедимс€ что idxIT валиден
+				if (lextable.table[i].idxIT == IT_NULLIDX) {
+					// некорректна€ ссылка на id Ч бросаем ошибку
+					ERROR_THROW(110 /*код ошибки*/, lextable.table[i].line, 0);
+				}
+				args.push_back(idtable.table[lextable.table[i].idxIT]);
 			}
-		}
-		IT::Entry e = IT_ENTRY(++i);	// идентификатор вызываемой функции
-		while (!temp.empty()) {			// раскручиваем стек
-			if (temp.top().idtype == IT::IDTYPE::L && temp.top().iddatatype == IT::IDDATATYPE::STR ||
-				temp.top().iddatatype == IT::IDDATATYPE::CHR) {	// !!!
-				str += "push offset " + string(temp.top().fullName) + "\n";
-			}
-			else {
-				str += "push " + string(temp.top().fullName) + "\n";
-			}
-			temp.pop();
+			++i;
 		}
 
-		str += "call " + string(e.fullName) + '\n';
-		i++;
+		// если '@' не найдено Ч ошибка
+		if (i >= lextable.size) {
+			ERROR_THROW(111 /* '@' not found */, /*line*/0, /*pos*/0);
+		}
+
+		// следующий токен Ч идентификатор функции
+		++i;
+		if (i >= lextable.size || lextable.table[i].lexema != LT_ID || lextable.table[i].idxIT == IT_NULLIDX) {
+			ERROR_THROW(112 /* invalid function identifier after @ */);
+		}
+		IT::Entry funcEntry = idtable.table[lextable.table[i].idxIT];
+
+		// генерируем push'и: правый аргумент первым (right-to-left)
+		for (int k = (int)args.size() - 1; k >= 0; --k) {
+			IT::Entry& a = args[k];
+			if (a.idtype == IT::IDTYPE::L && (a.iddatatype == IT::IDDATATYPE::STR || a.iddatatype == IT::IDDATATYPE::CHR)) {
+				str += "\tpush offset " + string(a.fullName) + "\n";
+			}
+			else {
+				str += "\tpush " + string(a.fullName) + "\n";
+			}
+		}
+
+		// вызов
+		str += "\tcall " + string(funcEntry.fullName) + "\n";
+
+		++i;
+
+		if (args.size() > 0) {
+			str += "\tadd esp, " + to_string(args.size() * 4) + "\n";
+		}
+
+		return str;
+	}
+
+
+	static int FindFunctionIndex(IT::IdTable& idtable, const std::string& fullName) {
+		for (int k = 0; k < idtable.size; ++k) {
+			if (idtable.table[k].fullName == fullName &&
+				(idtable.table[k].idtype == IT::IDTYPE::F || idtable.table[k].idtype == IT::IDTYPE::C)) {
+				return k;
+			}
+		}
+		return IT_NULLIDX;
+	}
+
+	string GenExitCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i, string funcname) {
+		string str;
+
+		// восстановление сохранЄнных регистров (симметрично prlog)
+		str += "\t; --- восстановить регистры --- \n";
+		str += "\tpop edi\n";  // ≈сли сохран€ли EDI
+		str += "\tpop esi\n";
+		str += "\tpop ebx\n";
+		str += "\t; -----------------------------\n";
+
+		str += "\tmov esp, ebp\n"; // ESP теперь указывает на сохраненный EBP
+		str += "\tpop ebp\n";      // EBP восстановлен, ESP указывает на адрес возврата
+
+		// если есть возвращаемое выражение: mov eax, <expr>
+		if (i + 1 < lextable.size && LT_ENTRY(i + 1).lexema != LT_SEMICOLON) {
+			// ожидание, что lextable содержит идентификатор/литерал/или переменную
+			str += "\tmov eax, " + string(IT_ENTRY(i + 1).fullName) + "\n";
+		}
+
+		// если это не main Ч вернуть с очисткой параметров (stdcall)
+		if (!funcname.empty() && funcname != "main") {
+			// найдем функцию в idtable, чтобы узнать кол-во параметров (если хранитс€)
+			int idx = FindFunctionIndex(idtable, funcname);
+			int bytesToClean = 0;
+			if (idx != IT_NULLIDX) {
+				int cnt = idtable.table[idx].params.count; // предполагаем, что count хранитс€
+				bytesToClean = cnt * 4;
+			}
+			// ret с очисткой стека (если bytesToClean == 0 Ч это просто ret 0 Ч эквивалент ret)
+			if (bytesToClean > 0) {
+				str += "\tret " + itoS(bytesToClean) + "\n";
+			}
+			else {
+				str += "\tret\n";
+			}
+			str += funcname + " ENDP" + SEPSTREMP;
+		}
+		else {
+			// дл€ main Ч просто ret (считайте, что ExitProcess вызываетс€)
+			str += "\t; main end (no ret/ENDP here)\n";
+		}
 
 		return str;
 	}

@@ -36,9 +36,10 @@ namespace LT {
         t_char,
         t_string,
 
-        number,
-        symbol,
-        string,
+        variable,
+        function,
+        call,
+        parameter,
 
         print,
         date,
@@ -47,6 +48,14 @@ namespace LT {
         increment,
         dicrement,
         inversion,
+
+        increment_post,
+        dicrement_post,
+        inversion_post,
+
+        pref_increment,
+        pref_dicrement,
+        pref_inversion,
 
         plus,
         minus,

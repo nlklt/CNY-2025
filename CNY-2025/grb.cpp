@@ -16,10 +16,10 @@ namespace GRB
 
 			Rule(NS('S'), GRB_ERROR_SERIES + 0, {	// Неверная тсруктура программы
 
+					{ TS('f'), TS('t'), TS('i'), NS('F'), TS('{'), NS('N'), TS('}'), NS('S')},
 					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
 					{ TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
 					{ TS('t'), TS('i'), TS(';'), NS('S') },
-					{ TS('f'), TS('t'), TS('i'), NS('F'), TS('{'), NS('N'), TS('}'), NS('S')},
 					{ TS('t'), TS('m'), TS('('), TS(')'), TS('{'), NS('N'), TS('}'), NS('S') },
 					{ TS('$') }
 			}),
@@ -28,8 +28,8 @@ namespace GRB
 					{ TS('t'), TS('i'), TS(';'), NS('N') },
 					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
 
+					{ TS('}') },
 					{ TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
-					{ TS('}')},
 
 					{ TS('i'), NS('W'), TS(';'), NS('N') },
 					{ TS('i'), NS('W'), TS(';'), NS('N') },
@@ -37,8 +37,8 @@ namespace GRB
 					{ TS('u'), TS('i'), TS(';'), NS('N') },
 					{ TS('i'), TS('u'), TS(';'), NS('N') },
 					{ TS('c'), TS('t'), TS('i'), TS('='), NS('E'), TS('.'), NS('E'), TS('{'), NS('N'), NS('N')},
-					{ TS('r'), NS('E'), TS(';'), NS('N') },
-					{ TS('r'), NS('E'), TS(';') }
+					{ TS('r'), NS('E'), TS(';') },
+					{ TS('r'), NS('E'), TS(';'), NS('N') }
 			}),
 			Rule(NS('E'), GRB_ERROR_SERIES + 2, {	//Ошибка в выражении
 
@@ -50,8 +50,10 @@ namespace GRB
 					{ TS('('), NS('E'), TS(')'), NS('M') },
 					{ TS('i'), NS('W') },
 					{ TS('i'), NS('W'), NS('M') },
-					{ TS('u'), TS('i') },
-					{ TS('i'), TS('u') }
+					{ TS('u'), NS('E') },
+					{ TS('u'), NS('M'), NS('E') },
+					{ TS('i'), TS('u') },
+					{ TS('i'), TS('u'), NS('M') }
 			}),
 			Rule(NS('M'), GRB_ERROR_SERIES + 3,	{	//Ошибка в действиях
 
@@ -68,7 +70,10 @@ namespace GRB
 			Rule(NS('W'), GRB_ERROR_SERIES + 5, {	//Ошибка в параметрах
 
 					{ TS('('), TS(')')},
+					{ TS('('), NS('E'), TS(')')},
 					{ TS('('), NS('W'), TS(')')},
+					{ TS('('), TS('i'), NS('W'), TS(')') },
+					{ TS('('), TS('i'), NS('W'), NS('N'), TS(')') },
 					{ TS('i') },
 					{ TS('l') },
 					{ TS('i'), TS(','), NS('W') },

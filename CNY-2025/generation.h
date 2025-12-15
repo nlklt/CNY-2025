@@ -17,28 +17,27 @@
 #define SEPSTREMP  ";------------------------------\n"
 #define SEPSTR(x)  (std::string("\n;----------- ") + std::string(x) + " ------------\n")
 
-#define BEGIN			  ".386\n"\
-					   << ".model flat, stdcall		\n"\
-					   << "includelib kernel32.lib	\n"\
-					   << "includelib libucrt.lib	\n"\
-					   << "includelib Library.lib	\n\n"\
-\
-					   << "ExitProcess PROTO: dword	\n"
+#define BEGIN_ASM		    ".586\n"\
+                            << ".model flat, C\n"\
+                            << "includelib kernel32.lib\n"\
+                            << "includelib libucrt.lib\n"\
+                            << "includelib Library.lib\n\n"
 
-#define EXTERN			  "write_int PROTO C :sword\n"\
-					   << "write_str PROTO C :ptr byte\n"\
-					   << "get_time PROTO C	\n"\
-					   << "get_date PROTO C\n"
+#define EXTERN_ASM			"extern write_int: PROC\n"\
+						    << "extern write_str: PROC\n"\
+						    << "extern get_time : PROC\n"\
+						    << "extern get_date : PROC\n"\
+						    << "extern _imp__ExitProcess@4: PROC\n\n"
 
-#define STACK(value)	".stack 4096 \n"
+#define STACK_ASM(value)	".stack " << value << "\n"
 
-#define CONST			"\n.const"
+#define CONST_ASM			"\n.const\t\t\t\t\t; константы\n"
 
-#define DATA			"\n.data"
+#define DATA_ASM			"\n.data\t\t\t\t\t; пременные\n"
 
-#define CODE			"\n.code"
+#define CODE_ASM			"\n.code\n" // !!! ВАЖНО: Добавлено открывающее .code
 
-#define END				"push 0\ncall ExitProcess\nmain ENDP\nend main"
+#define END_ASM				"\nend main\n"
 
 
 
@@ -48,8 +47,8 @@ namespace GN
 	void GenConstAndData(IT::IdTable& idtable, std::ostream* file);
 	void GenCode(LT::LexTable& lextable, IT::IdTable& idtable, std::ostream* file);
 
-	std::string GenEqualCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i);
-	std::string GenFunctionCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i);
+	std::string GenFunctionCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i, std::string currFuncName);
+	std::string ProcessPolishString(LT::LexTable& lextable, IT::IdTable& idtable, int& i);
 	std::string GenExitCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i, std::string funcname);
 	std::string GenCallFuncCode(LT::LexTable& lextable, IT::IdTable& idtable, int& i);
 

@@ -10,7 +10,7 @@ extern "C"
     // Функция вывода числа
     void __cdecl write_int(int value)
     {
-        std::cout << value;
+        std::cout << value << std::endl;
     }
 
     // Функция вывода строки
@@ -20,10 +20,10 @@ extern "C"
         SetConsoleOutputCP(1251);
         if (ptr == nullptr)
         {
-            std::cout << "null";
+            std::cout << "null\n";
             return;
         }
-        std::cout << ptr;
+        std::cout << ptr << std::endl;
     }
 
     // Функция получения системного времени

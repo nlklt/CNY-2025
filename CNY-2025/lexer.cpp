@@ -17,34 +17,35 @@ namespace Lexer
     {
         std::map<std::string, char> keywords;
 
-        keywords["int"]       = LT_TYPE;
-        keywords["char"]      = LT_TYPE;
-        keywords["string"]    = LT_TYPE;
+        keywords["int"] = LT_TYPE;
+        keywords["char"] = LT_TYPE;
+        keywords["string"] = LT_TYPE;
 
-        keywords["main"]      = LT_MAIN;
+        keywords["main"] = LT_MAIN;
 
-        keywords["for"]       = LT_FOR;
+        keywords["for"] = LT_FOR;
 
-        keywords["function"]  = LT_FUNCTION;
-        keywords["return"]    = LT_RETURN;
+        keywords["function"] = LT_FUNCTION;
+        keywords["return"] = LT_RETURN;
 
-        keywords["print"]     = LT_ID;
-        keywords["get_time"]  = LT_ID;
-        keywords["get_date"]  = LT_ID;
+        keywords["print"] = LT_ID;
+        keywords["get_time"] = LT_ID;
+        keywords["get_date"] = LT_ID;
 
         // стек областей видимости
         std::vector<std::string> scopeStack;
         scopeStack.push_back("global"); // глобальна€ область
         int scopeScp = 0;
 
-        int tn        = 0;
-        int line      = 1;
-        int position  = 0;
+        int tn = 0;
+        int line = 1;
+        int position = 0;
 
         // контекстные флаги
-        bool afterFunctionKeyword   = false;
-        bool afterFunctionName      = false;
-        bool inFunctionHeader       = false;
+        bool afterFunctionKeyword = false;
+        bool afterFunctionName = false;
+        bool inFunctionHeader = false;
+        bool isNegative = false;
 
         IT::IDDATATYPE lastTypeToken = IT::IDDATATYPE::UNDEF;
 
@@ -70,20 +71,20 @@ namespace Lexer
                 --i; --position; //вернЄм на последний символ слова
 
                 if (keywords.count(word)) { // ключевое слово
-                    char kw     = keywords[word];
-                    char sign   = kw;
+                    char kw = keywords[word];
+                    char sign = kw;
 
-                    if      (word == "int")     { lastTypeToken = IT::IDDATATYPE::INT;   sign = LT::SIGNATURE::t_int;    }
-                    else if (word == "char")    { lastTypeToken = IT::IDDATATYPE::CHR;   sign = LT::SIGNATURE::t_char;   }
-                    else if (word == "string")  { lastTypeToken = IT::IDDATATYPE::STR;   sign = LT::SIGNATURE::t_string; }
-                    else if (word == "print")   { sign = LT::SIGNATURE::print; }
-                    else if (word == "get_time"){ sign = LT::SIGNATURE::time;  }
-                    else if (word == "get_date"){ sign = LT::SIGNATURE::date;  }
-                    else                        { lastTypeToken = IT::IDDATATYPE::UNDEF; }
+                    if (word == "int") { lastTypeToken = IT::IDDATATYPE::INT;   sign = LT::SIGNATURE::t_int; }
+                    else if (word == "char") { lastTypeToken = IT::IDDATATYPE::CHR;   sign = LT::SIGNATURE::t_char; }
+                    else if (word == "string") { lastTypeToken = IT::IDDATATYPE::STR;   sign = LT::SIGNATURE::t_string; }
+                    else if (word == "print") { sign = LT::SIGNATURE::print; }
+                    else if (word == "get_time") { sign = LT::SIGNATURE::time; }
+                    else if (word == "get_date") { sign = LT::SIGNATURE::date; }
+                    else { lastTypeToken = IT::IDDATATYPE::UNDEF; }
 
-                    if      (word == "main")     { scopeStack.push_back("main"); }
-                    else if (word == "for")      { scopeStack.push_back(std::to_string(scopeScp++)); }
-                    
+                    if (word == "main") { scopeStack.push_back("main"); }
+                    else if (word == "for") { scopeStack.push_back(std::to_string(scopeScp++)); }
+
                     if (kw == LT_FUNCTION) afterFunctionKeyword = true;
 
                     if (word == "print" || word == "get_date" || word == "get_time") {
@@ -103,7 +104,7 @@ namespace Lexer
                         LT::Entry kwentry_l(kw, sign, line, ++tn, it.size - 1);
                         LT::Add(lt, kwentry_l);
                     }
-                    
+
                     else {
                         LT::Entry kwentry_l(kw, sign, line, ++tn, LT_NULLIDX);
                         LT::Add(lt, kwentry_l);
@@ -116,7 +117,7 @@ namespace Lexer
                     // область видимости
                     std::string currScope = scopeStack.back();
                     std::string fullName;
-                    fullName = currScope + "$" + word;
+                    fullName = word + "$" + currScope;
 
                     if (fullName.length() >= IT_ID_MAXSIZE * 2) {
                         fullName = fullName.substr(0, (IT_ID_MAXSIZE * 2 - 1));
@@ -128,10 +129,18 @@ namespace Lexer
                     while (!copyScope.empty() && lt.table[lt.size - 1].lexema != LT_TYPE) {
                         currScope = copyScope.back();
                         copyScope.pop_back();
-                        fullName = currScope + "$" + word;
+                        fullName = word + "$" + currScope;
 
                         idxIT = IT::IsId(it, fullName);
                         if (idxIT != IT_NULLIDX) break;
+                    }
+
+                    char sign = LT::SIGNATURE::variable;
+                    if (afterFunctionKeyword) {     // функци€
+                        sign = LT::SIGNATURE::function;
+                    }
+                    else if (inFunctionHeader) {    // параметр
+                        sign = LT::SIGNATURE::parameter;
                     }
 
                     if (idxIT == IT_NULLIDX) {
@@ -150,7 +159,7 @@ namespace Lexer
                         fullName = fullName.substr(0, (IT_ID_MAXSIZE * 2 - 1));
 
                         IT::Entry identry_i(lt.size, word, fullName, decidedType, decidedDataType);
-                        if      (decidedDataType == IT::IDDATATYPE::INT)    identry_i.value.vint = IT_INT_DEFAULT;
+                        if (decidedDataType == IT::IDDATATYPE::INT)    identry_i.value.vint = IT_INT_DEFAULT;
                         else if (decidedDataType == IT::IDDATATYPE::CHR)    identry_i.value.vchr = IT_CHAR_DEFAULT;
                         else if (decidedDataType == IT::IDDATATYPE::STR)    strcpy_s(identry_i.value.vstr, sizeof(identry_i.value.vstr), IT_STR_DEFAULT);
 
@@ -158,20 +167,48 @@ namespace Lexer
                         idxIT = it.size - 1;
                     }
                     else if (it.table[idxIT].idtype == IT::IDTYPE::F) {
-                        IT::Entry callentry_i = it.table[idxIT];
-                        callentry_i.idtype = IT::IDTYPE::C;
+                        sign = LT::SIGNATURE::call;
+                        inFunctionHeader = true;
                     }
                     else if (lt.table[lt.size - 1].lexema == LT_TYPE) {
                         std::cerr << "ѕовторное создание переменной\n";
                     }
 
-                    LT::Entry identry_l(lexema, LT_ID, line, ++tn, idxIT);
+                    LT::Entry identry_l(lexema, sign, line, ++tn, idxIT);
                     LT::Add(lt, identry_l);
                     continue;
                 }
             }
+            else if (isdigit(c) || c == '-') { // числовой литерал
+                if (c == '-') {
+                    if (c == '-' && i + 1 < in.size && isdigit(in.text[i + 1])) {
+                        isNegative = true;
+                        i++; position++;
+                    }
+                    else if (c == '-' && i + 1 < in.size && isspace(in.text[i + 1])) {
+                        char symbol = LT_OP_BINARY;
+                        char sign = LT::SIGNATURE::minus;
+                        ++i; ++position;
 
-            else if (isdigit(c)) { // числовой литерал
+                        LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);
+                        symbentry_l.lexema = symbol;
+                        LT::Add(lt, symbentry_l);
+                        continue;
+                    }
+                    else if (c == '-' && i + 1 < in.size && in.text[i + 1] == '-') {
+                        char symbol = LT_OP_UNARY;
+                        char sign = LT::SIGNATURE::dicrement;
+                        i++; position++;
+
+                        LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);
+                        symbentry_l.lexema = symbol;
+                        LT::Add(lt, symbentry_l);
+                        continue;
+                    }
+                    else {
+                        ERROR_THROW(201, line, position);
+                    }
+                }
                 if (in.text[i] == '0' && i + 1 < in.size && in.text[i + 1] == 'o') { // восьмеричный
                     i += 2; position += 2;
 
@@ -192,30 +229,29 @@ namespace Lexer
                     }
                     catch (...) { ERROR_THROW(201); }
 
-                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                    if (isNegative) {
                         value *= (-1);
                         oct += "_n";
+                        isNegative = false;
                     }
                     std::string number = std::string("0o") + oct;
-                    
+
                     std::string fullName = "L_num_" + number;
 
                     int idxIT = IT::IsId(it, fullName);
-                    if (idxIT == IT_NULLIDX) { 
+                    if (idxIT == IT_NULLIDX) {
                         IT::Entry octentry_i(lt.size, number, fullName, IT::IDTYPE::L, IT::IDDATATYPE::INT);
                         octentry_i.value.vint = (int)value;
                         IT::Add(it, octentry_i);
                         idxIT = it.size - 1;
                     }
 
-                    char sign = LT::SIGNATURE::number;
+                    char sign = LT::SIGNATURE::variable;
+                    if (inFunctionHeader) {    // параметр
+                        sign = LT::SIGNATURE::parameter;
+                    }
                     LT::Entry octentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
-                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
-                        lt.table[lt.size - 1] = octentry_l;
-                    }
-                    else {
-                        LT::Add(lt, octentry_l);
-                    }
+                    LT::Add(lt, octentry_l);
                     continue;
                 }
                 else { // дес€тичный литерал
@@ -230,9 +266,10 @@ namespace Lexer
                     try { value = std::stoll(dec); }
                     catch (...) { ERROR_THROW(201); }
 
-                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
+                    if (isNegative) {
                         value *= (-1);
                         dec += "_n";
+                        isNegative = false;
                     }
                     std::string fullName = "L_num_" + dec;
                     int idxIT = IT::IsId(it, fullName);
@@ -243,14 +280,12 @@ namespace Lexer
                         idxIT = it.size - 1;
                     }
 
-                    char sign = LT::SIGNATURE::number;
+                    char sign = LT::SIGNATURE::variable;
+                    if (inFunctionHeader) {    // параметр
+                        sign = LT::SIGNATURE::parameter;
+                    }
                     LT::Entry decentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
-                    if (lt.table[lt.size - 1].sign == LT::SIGNATURE::minus) {
-                        lt.table[lt.size - 1] = decentry_l;
-                    }
-                    else {
-                        LT::Add(lt, decentry_l);
-                    }
+                    LT::Add(lt, decentry_l);
                     continue;
                 }
             }
@@ -264,10 +299,10 @@ namespace Lexer
                     i++; position++;
                 }
 
-                if (i >= in.size || in.text[i] != '\"') 
+                if (i >= in.size || in.text[i] != '\"')
                     ERROR_THROW(203, line, position);
 
-                if (str.length() > IT_STR_MAXSIZE)      
+                if (str.length() > IT_STR_MAXSIZE)
                     ERROR_THROW(203, line, position);
 
                 std::string fullName = "L_str_" + std::to_string(lt.size);
@@ -280,7 +315,10 @@ namespace Lexer
                     idxIT = it.size - 1;
                 }
 
-                char sign = LT::SIGNATURE::string;
+                char sign = LT::SIGNATURE::variable;
+                if (inFunctionHeader) {    // параметр
+                    sign = LT::SIGNATURE::parameter;
+                }
                 LT::Entry strentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
                 LT::Add(lt, strentry_l);
             }
@@ -294,10 +332,10 @@ namespace Lexer
                     i++; position++;
                 }
 
-                if (i >= in.size || in.text[i] != '\'' || chr.length() != 1) 
+                if (i >= in.size || in.text[i] != '\'' || chr.length() != 1)
                     ERROR_THROW(203, line, colStart);
 
-                if (chr.length() != 1) 
+                if (chr.length() != 1)
                     ERROR_THROW(203, line, position);
 
                 std::string fullName = "L_chr_" + std::to_string(lt.size);
@@ -310,7 +348,10 @@ namespace Lexer
                     idxIT = it.size - 1;
                 }
 
-                char sign = LT::SIGNATURE::symbol;
+                char sign = LT::SIGNATURE::variable;
+                if (inFunctionHeader) {    // параметр
+                    sign = LT::SIGNATURE::parameter;
+                }
                 LT::Entry strentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
                 LT::Add(lt, strentry_l);
                 continue;
@@ -320,81 +361,81 @@ namespace Lexer
                 char sign = symbol;
 
                 switch (symbol) {
-                    case '{': symbol = LT_LEFTBRACE; break;
-                    case '}': symbol = LT_RIGHTBRACE;
-                        if (scopeStack.size() > 1)
-                        {
-                            scopeStack.pop_back();
-                        }
-                        break;
-                    case '(': symbol = LT_LEFTHESIS;
-                        if (afterFunctionName)
-                        {
-                            inFunctionHeader = true;
-                            afterFunctionName = false;
-                        }
-                        break;
-                    case ')': symbol = LT_RIGHTHESIS;
-                        if (inFunctionHeader)
-                        {
-                            inFunctionHeader = false;
-                            lastTypeToken = IT::IDDATATYPE::UNDEF;
-                        }
-                        break;
-                    case '.':
-                        if (i + 1 < in.size && in.text[i + 1] == '.')
-                        {
-                            symbol = LT_RANGE;
-                            ++i; ++position;
-                        }
-                        else ERROR_THROW(205, line, position);
-                        break;
-                    case '+':
-                        if (i + 1 < in.size && in.text[i + 1] == '+')
-                        {
-                            symbol = LT_OP_UNARY;
-                            sign = LT::SIGNATURE::increment;
-                            ++i; ++position;
-                        }
-                        else {
-                            symbol = LT_OP_BINARY;
-                            sign = LT::SIGNATURE::plus;
-                        }
-                        break;
-                    case '-':
-                        if (i + 1 < in.size && in.text[i + 1] == '-')
-                        {
-                            symbol = LT_OP_UNARY;
-                            sign = LT::SIGNATURE::dicrement;
-                            ++i; ++position;
-                        }
-                        else {
-                            symbol = LT_OP_BINARY;
-                            sign = LT::SIGNATURE::minus;
-                        }
-                        break;
-                    case '*':
-                        symbol = LT_OP_BINARY;
-                        sign = LT::SIGNATURE::multiplication;
-                        break;
-                    case '/':
-                        symbol  = LT_OP_BINARY;
-                        sign    = LT::SIGNATURE::division;
-                        break;
-                    case ',': symbol = LT_COMMA; break;
-                    case ';':
-                        symbol = LT_SEMICOLON;
+                case '{': symbol = LT_LEFTBRACE; break;
+                case '}': symbol = LT_RIGHTBRACE;
+                    if (scopeStack.size() > 1)
+                    {
+                        scopeStack.pop_back();
+                    }
+                    break;
+                case '(': symbol = LT_LEFTHESIS;
+                    if (afterFunctionName)
+                    {
+                        inFunctionHeader = true;
+                        afterFunctionName = false;
+                    }
+                    break;
+                case ')': symbol = LT_RIGHTHESIS;
+                    if (inFunctionHeader)
+                    {
+                        inFunctionHeader = false;
                         lastTypeToken = IT::IDDATATYPE::UNDEF;
-                        break;
-                    case '~': symbol = LT_OP_UNARY; sign = LT::SIGNATURE::inversion; break;
-                    case '=': symbol = LT_EQUAL; break;
-                    default:
-                        ERROR_THROW(205, line, position);
+                    }
+                    break;
+                case '.':
+                    if (i + 1 < in.size && in.text[i + 1] == '.')
+                    {
+                        symbol = LT_RANGE;
+                        ++i; ++position;
+                    }
+                    else ERROR_THROW(205, line, position);
+                    break;
+                case '+':
+                    if (i + 1 < in.size && in.text[i + 1] == '+')
+                    {
+                        symbol = LT_OP_UNARY;
+                        sign = LT::SIGNATURE::increment;
+                        ++i; ++position;
+                    }
+                    else {
+                        symbol = LT_OP_BINARY;
+                        sign = LT::SIGNATURE::plus;
+                    }
+                    break;
+                case '-':
+                    if (i + 1 < in.size && in.text[i + 1] == '-')
+                    {
+                        symbol = LT_OP_UNARY;
+                        sign = LT::SIGNATURE::dicrement;
+                        ++i; ++position;
+                    }
+                    else {
+                        symbol = LT_OP_BINARY;
+                        sign = LT::SIGNATURE::minus;
+                    }
+                    break;
+                case '*':
+                    symbol = LT_OP_BINARY;
+                    sign = LT::SIGNATURE::multiplication;
+                    break;
+                case '/':
+                    symbol = LT_OP_BINARY;
+                    sign = LT::SIGNATURE::division;
+                    break;
+                case ',': symbol = LT_COMMA; break;
+                case ';':
+                    symbol = LT_SEMICOLON;
+                    lastTypeToken = IT::IDDATATYPE::UNDEF;
+                    break;
+                case '~': symbol = LT_OP_UNARY; sign = LT::SIGNATURE::inversion; break;
+                case '=': symbol = LT_EQUAL; break;
+                default:
+                    ERROR_THROW(205, line, position);
                 }
 
                 LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);
                 symbentry_l.lexema = symbol;
-                
+
                 LT::Add(lt, symbentry_l);
             }
         }

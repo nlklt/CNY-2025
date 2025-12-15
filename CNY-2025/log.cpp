@@ -54,9 +54,7 @@ namespace Log {
         case LT::SIGNATURE::t_int:       return "t_int";
         case LT::SIGNATURE::t_char:      return "t_char";
         case LT::SIGNATURE::t_string:    return "t_string";
-        case LT::SIGNATURE::number:      return "number";
-        case LT::SIGNATURE::symbol:      return "symbol";
-        case LT::SIGNATURE::string:      return "string";
+        case LT_LITERAL:                 return "literal";
         case LT::SIGNATURE::print:       return "print";
         case LT::SIGNATURE::date:        return "date";
         case LT::SIGNATURE::time:        return "time";

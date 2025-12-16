@@ -18,7 +18,6 @@ namespace Log {
     const char* LexemeToString(char lex) {
         static char buf[8];
         switch (lex) {
-        case LT_EOF:       return "EOF";
         case LT_MAIN:      return "main";
         case LT_TYPE:      return "type";
         case LT_FOR:       return "for";

@@ -14,10 +14,12 @@ namespace PN
         {
         case LT_LEFTHESIS:  return 0;
         case LT_RIGHTHESIS: return 0;
+
         case LT_COMMA: return 2;
 
         case LT::SIGNATURE::plus:  return 3;
         case LT::SIGNATURE::minus: return 3;
+
         case LT::SIGNATURE::multiplication: return 4;
         case LT::SIGNATURE::division:       return 4;
 
@@ -49,7 +51,7 @@ namespace PN
                 bool nextIsLeftParen = (i + 1 < exprEndIdx && lextable.table[i + 1].lexema == '(');
                 bool isFuncName = false;
                 if (lx == 'i' && lex.idxIT != IT_NULLIDX && nextIsLeftParen) {
-                    if (idtable.table[lex.idxIT].idtype == IT::IDTYPE::C) isFuncName = true;
+                    if (idtable.table[lex.idxIT].idtype == IT::IDTYPE::F) isFuncName = true;
                 }
 
                 if (isFuncName) {
@@ -66,7 +68,7 @@ namespace PN
             // --- открывающая скобка
             if (lx == '(') {
                 bool isFuncArgs = (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX
-                    && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::C);
+                    && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::F);
 
                 ops.push(lex);
                 if (isFuncArgs) paramCount.push(0);
@@ -95,15 +97,13 @@ namespace PN
 
                         // над '(' в стеке должно быть имя функции
                         if (!ops.empty() && ops.top().lexema == 'i' && ops.top().idxIT != IT_NULLIDX
-                            && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::C) {
+                            && idtable.table[ops.top().idxIT].idtype == IT::IDTYPE::F) {
 
                             LT::Entry funcName = ops.top(); ops.pop();
 
-                            // помечаем вызов: сначала оператор '@' (вызов), затем имя функции
                             LT::Entry callOp = lex;
                             callOp.lexema = '@';
                             callOp.idxIT = IT_NULLIDX;
-                            // (при желании можно положить finalArgCount в какое-то поле callOp, если нужно)
 
                             out.push_back(callOp);
                             out.push_back(funcName);
@@ -133,8 +133,40 @@ namespace PN
                 continue;
             }
 
-            // --- операторы: определим наличие оператора по приоритету
             int pcur = priority(lex);
+            // --- операторы: унарные, определить рассположение
+            if (lx == 'u') {
+                switch (lex.sign) {
+                case LT::SIGNATURE::increment:
+                    if (lastLexemaWasOperand) {
+                        lex.sign = LT::SIGNATURE::increment_post;
+                    }
+                    else {
+                        lex.sign = LT::SIGNATURE::pref_increment;
+                    }
+                    break;
+                case LT::SIGNATURE::dicrement:
+                    if (lastLexemaWasOperand) {
+                        lex.sign = LT::SIGNATURE::dicrement_post;
+                    }
+                    else {
+                        lex.sign = LT::SIGNATURE::pref_dicrement;
+                    }
+                    break;
+                case LT::SIGNATURE::inversion:
+                    if (lastLexemaWasOperand) {
+                        lex.sign = LT::SIGNATURE::inversion_post;
+                    }
+                    else {
+                        lex.sign = LT::SIGNATURE::pref_inversion;
+                    }
+                    break;
+                }
+                out.push_back(lex);
+                continue;
+            }
+
+            // --- операторы: определим наличие оператора по приоритету
             if (pcur > 0) {
                 // выталкиваем из стека все операторы с приоритетом >= текущего (левоассоциативность)
                 while (!ops.empty() && ops.top().lexema != '(') {
@@ -147,8 +179,6 @@ namespace PN
                 lastLexemaWasOperand = false;
                 continue;
             }
-
-            // прочие — игнорируем
         }
 
         // выталкиваем оставшиеся операторы

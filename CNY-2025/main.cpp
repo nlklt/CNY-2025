@@ -29,6 +29,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
     try {
         Parm::PARM parm = Parm::getparm(argc, argv);
+        std::cout << Colors::GREEN << "Параметры командной строки получены успешно." << Colors::RESET << std::endl;
 
         log = Log::getlog(parm.log);
 
@@ -36,47 +37,41 @@ int wmain(int argc, wchar_t* argv[]) {
         Log::WriteParm(log, parm);
 
         In::IN in = In::getin(parm.in, parm.out);
+        std::cout << Colors::GREEN << "Проверка на недопустимые символы прошла успешно." << Colors::RESET << std::endl;
 
         Log::WriteIn(log, in);
 
         Lexer::lexicalAnalysis(in, lextable, idtable);
+        std::cout << Colors::GREEN << "Лексический анализ прошёл успешно." << Colors::RESET << std::endl;
 
         Log::WriteLex(log, lextable, &idtable);
         Log::WriteLexTable(log, lextable, &idtable);
 
         MFST::Mfst mfst(lextable, GRB::getGreibach());
-
         bool ok = mfst.start(idtable);
         if (ok)
         {
-            std::cout << "Синтаксический анализ прошёл успешно." << std::endl;
+            std::cout << Colors::GREEN << "Синтаксический анализ прошёл успешно." << Colors::RESET << std::endl;
 
             mfst.buildTree(idtable);
 
-            if (mfst.tree.toDot("ast.dot"))
-            {
-                std::cout << "Дерево успешно сохранено в файл ast.dot." << std::endl;
-                std::cout << "Для визуализации используйте команду Graphviz." << std::endl;
+            if (mfst.tree.toDot("pst.dot")) {
+                std::cout << Colors::GREEN << "Дерево разбора успешно сохранено в файл pst.dot." << Colors::RESET << std::endl;
             }
-            else
-            {
-                std::cerr << "Ошибка записи в файл ast.dot." << std::endl;
+            else {
+                std::cerr << Colors::RED << "Ошибка записи в файл pst.dot." << Colors::RESET << std::endl;
             }
 
-            std::cout << "\n=== Абстрактное Синтаксическое Дерево (AST) ===" << std::endl;
-            mfst.tree.print(mfst.tree.root, 0);
-            std::cout << "===============================================" << std::endl;
+            mfst.tree.print(mfst.tree.root, 0, log.stream);
         }
         else
         {
-            std::cout << "Синтаксический анализ обнаружил ошибки." << std::endl;
+            std::cout << Colors::RED << "Синтаксический анализ обнаружил ошибки." << Colors::RESET << std::endl;
         }
-
-        mfst.printrules();
 
         SM::semanticAnalysis(lextable, idtable);
 
-        std::cout << "Успешное завершение.";
+        std::cout << Colors::GREEN << "Семантический анализ прошёл успешно." << Colors::RESET << std::endl;;
 
         Log::WriteLine(log, (char*)"Успешное завершение.", "");
         Log::Close(log);
@@ -84,7 +79,7 @@ int wmain(int argc, wchar_t* argv[]) {
         std::ofstream asmFile(parm.out);
         if (!asmFile.is_open())
         {
-            std::cout << "Ошибка: Не удалось открыть файл " << parm.out << std::endl;
+            std::cout << Colors::RED << "Ошибка: Не удалось открыть файл " << parm.out << Colors::RESET << std::endl;
         }
 
         GN::GenerationASM(&asmFile, lextable, idtable);
@@ -94,13 +89,15 @@ int wmain(int argc, wchar_t* argv[]) {
 
         asmFile.close();
 
+        std::cout << Colors::GREEN << "Успешное завершение." << Colors::RESET << std::endl;;
+
         Log::WriteLine(log, (char*)"Ассемблер успешно сгенерирован.\n", "");
         Log::WriteLine(log, (char*)"---------- Результат генерации --------\n", "");
         WriteLine(log, (wchar_t*)L"Файл с исходным кодом на языке ассемблер находится по пути: ", (wchar_t*)parm.out, L"");
     }
 
     catch (Error::ERROR e) {
-        std::cout << "[ОШИБКА] в строке: " << e.inext.line << " на позиции: " << e.inext.col << ": " << e.message << "\n";
+        std::cout << Colors::RED << "Error: В строке " << e.inext.line << " на позиции " << e.inext.col << ": " << e.message << "\n";
         Log::Close(log);
         return -1;
     }
@@ -108,14 +105,3 @@ int wmain(int argc, wchar_t* argv[]) {
     Log::Close(log);
     return 0;
 }
-
-//#include <iostream>
-//int main() {
-//	int i = 1 + 1 * 3;
-//	char a = 'i';
-//	int b = i * a - i + a;
-//	std::cout << b;
-//
-//
-//	return 0;
-//}

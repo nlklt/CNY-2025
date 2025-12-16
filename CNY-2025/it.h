@@ -7,6 +7,7 @@
 #define IT_NULLIDX      0xfffff
 
 #define IT_ID_MAXSIZE   32
+#define IT_INT_MAXVALUE 32767
 
 #define IT_INT_DEFAULT  0
 #define IT_CHAR_DEFAULT 'c'

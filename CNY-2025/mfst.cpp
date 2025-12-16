@@ -84,6 +84,21 @@ namespace MFST
 		return true;
 	};
 
+	char* Mfst::getDiagnosis(short n, char* buf)
+	{
+		char* rc = 0;
+		int errid = 0;
+		int lpos = -1;
+		if (n < MFST_DIAGN_NUMBER && (lpos = diagnosis[n].lenta_position) >= 0)
+		{
+			int errid = grebach.getRule(diagnosis[n].nrule).iderror;
+			Error::ERROR err = Error::geterror(errid);
+			sprintf_s(buf, MFST_DIAGN_MAXSIZE, "%d: строка %d, %s", err.id, lex->table[lpos].sn, err.message);
+			rc = buf;
+		};
+		return rc;
+	};
+
 	bool Mfst::savestate() {
 		storestate.push(MfstState(lenta_position, st, nrule, nrulechain));
 		return true;
@@ -120,15 +135,58 @@ namespace MFST
 	bool Mfst::start(IT::IdTable idtable) {
 		bool rc = false;
 		RC_STEP rc_step = step();
-		while (rc_step == NS_OK || rc_step == NS_NORULECHAIN || rc_step == TS_OK || rc_step == TS_NOK) {
+		char buf[MFST_DIAGN_MAXSIZE];
+		rc_step = step();
+		while (rc_step == NS_OK || rc_step == NS_NORULECHAIN || rc_step == TS_OK || rc_step == TS_NOK)
+		{
 			rc_step = step();
 		}
-		if (rc_step == LENTA_END) {
+
+		switch (rc_step)
+		{
+		case LENTA_END:		// MFST_TRACE4("--------> LENTA_END")
+			// std::cout << "------------------------------------------------------------" << std::endl;
+			// sprintf_s(buf, MFST_DIAGN_MAXSIZE, "%d: всего строк %d, синтаксический анализ выполнен без ошибок", 0, lenta_size);
+			// std::cout << std::setw(4) << std::left << 0 << ": всего строк" << lenta_size << ", синтаксический анализ выполнен без ошибок" << std::endl;
 			rc = true;
 			buildTree(idtable);
-		}
+			break;
+		case NS_NORULE:		// MFST_TRACE4("------->NS_NORULE")
+			//std::cout << "------------------------------------------------------------" << std::endl;
+			std::cout << Colors::RED << getDiagnosis(0, buf) << std::endl;
+			std::cout << getDiagnosis(1, buf) << std::endl;
+			std::cout << getDiagnosis(2, buf) << Colors::RESET << std::endl;
+			break;
+		case NS_NORULECHAIN:	// MFST_TRACE4("-------->NS_NORULECHAIN")
+			break;
+		case NS_ERROR:			MFST_TRACE4("-------->NS_ERROR")
+			break;
+		case SURPRISE:			MFST_TRACE4("-------->SURPRISE")
+			break;
+		};
 		return rc;
 	};
+
+	char* Mfst::getCSt(char* buf)
+	{
+		for (int k = (signed)st.size() - 1; k >= 0; k--)
+		{
+			short p = st.c[k]; buf[st.size() - 1 - k] = GRB::Rule::Chain::alphabet_to_char(p);
+		}
+		buf[st.size()] = 0x00;
+		return buf;
+	}
+
+	char* Mfst::getCLenta(char* buf, short pos, short n)
+	{
+		short i, k = (pos + n < lenta_size) ? pos + n : lenta_size;
+		for (i = pos; i < k; i++)
+		{
+			buf[i - pos] = GRB::Rule::Chain::alphabet_to_char(lenta[i]);
+		};
+		buf[i - pos] = 0x00;
+		return buf;
+	}
 
 	void Mfst::printrules()
 	{
@@ -146,9 +204,9 @@ namespace MFST
 	{
 		char startSymbol = GRB::Rule::Chain::alphabet_to_char(grebach.startN);
 		std::string rootName(1, startSymbol);
-		tree.root = new Ast::Node(rootName);
+		tree.root = new Pt::Node(rootName);
 
-		std::stack<Ast::Node*> nodesToProcess;
+		std::stack<Pt::Node*> nodesToProcess;
 		nodesToProcess.push(tree.root);
 
 		for (int i = 0; i < storestate.size(); i++)
@@ -160,15 +218,15 @@ namespace MFST
 			rule.getNextChain(lenta[state.lenta_position], chain, state.nrulechain);
 
 			if (nodesToProcess.empty()) { return false; }
-			Ast::Node* parent = nodesToProcess.top();
+			Pt::Node* parent = nodesToProcess.top();
 			nodesToProcess.pop();
 
-			std::vector<Ast::Node*> currChildren;
+			std::vector<Pt::Node*> currChildren;
 
 			for (int k = 0; k < chain.nt.size(); k++)
 			{
 				GRBALPHABET symbol = chain.nt[k];
-				Ast::Node* child = nullptr;
+				Pt::Node* child = nullptr;
 
 				if (GRB::Rule::Chain::isT(symbol))
 				{
@@ -178,13 +236,13 @@ namespace MFST
 					short lexIdx = -1;
 					if (i == 0) lexIdx = state.lenta_position;
 
-					child = new Ast::Node(lexIdx, symbolValue);
+					child = new Pt::Node(lexIdx, symbolValue);
 				}
 				else
 				{
 					char val = GRB::Rule::Chain::alphabet_to_char(symbol);
 					std::string sVal(1, val);
-					child = new Ast::Node(sVal);
+					child = new Pt::Node(sVal);
 				}
 
 				child->parent = parent;
@@ -194,7 +252,7 @@ namespace MFST
 
 			for (int i = currChildren.size() - 1; i >= 0; i--)
 			{
-				if (currChildren[i]->type == Ast::Node::NonTerminal)
+				if (currChildren[i]->type == Pt::Node::NonTerminal)
 				{
 					nodesToProcess.push(currChildren[i]);
 				}

@@ -18,7 +18,6 @@ namespace Lexer
         std::map<std::string, char> keywords;
 
         keywords["int"] = LT_TYPE;
-        keywords["char"] = LT_TYPE;
         keywords["string"] = LT_TYPE;
 
         keywords["main"] = LT_MAIN;
@@ -37,9 +36,9 @@ namespace Lexer
         scopeStack.push_back("global"); // глобальная область
         int scopeScp = 0;
 
-        int tn = 0;
-        int line = 1;
-        int position = 0;
+        int tn = 0;         // номер токена
+        int line = 1;       // строка
+        int position = 0;   // позиция в строке
 
         // контекстные флаги
         bool afterFunctionKeyword = false;
@@ -58,37 +57,44 @@ namespace Lexer
             }
 
             else if (isspace(c)) {
-                ++position;
                 continue;
             }
 
-            else if (isalpha(c) || c == '_') { // ключевое слово или идентификатор
+            // ключевое слово или идентификатор
+            else if (isalpha(c) || c == '_') {
                 std::string word;
                 while (i < in.size && (isalnum(in.text[i]) || in.text[i] == '_')) {
                     word += in.text[i];
                     ++i; ++position;
                 }
-                --i; --position; //вернём на последний символ слова
+                --i; --position; // возврат на последний символ слова
 
-                if (keywords.count(word)) { // ключевое слово
+                if (word.length() > IT_ID_MAXSIZE) {
+                    std::cout << Colors::YELLOW << "Warning: Идентифиукатор '" << word << 
+                        "' слишком большой (максимальная длина " << 
+                        IT_ID_MAXSIZE << "), идентификаор будет обрезан" << Colors::RESET << std::endl;
+                    word = word.substr(0, (IT_ID_MAXSIZE - 1));
+                }
+
+                // ключевое слово
+                if (keywords.count(word)) { 
                     char kw = keywords[word];
                     char sign = kw;
 
-                    if (word == "int") { lastTypeToken = IT::IDDATATYPE::INT;   sign = LT::SIGNATURE::t_int; }
-                    else if (word == "char") { lastTypeToken = IT::IDDATATYPE::CHR;   sign = LT::SIGNATURE::t_char; }
-                    else if (word == "string") { lastTypeToken = IT::IDDATATYPE::STR;   sign = LT::SIGNATURE::t_string; }
-                    else if (word == "print") { sign = LT::SIGNATURE::print; }
-                    else if (word == "get_time") { sign = LT::SIGNATURE::time; }
-                    else if (word == "get_date") { sign = LT::SIGNATURE::date; }
-                    else { lastTypeToken = IT::IDDATATYPE::UNDEF; }
+                    if      (word == "int")     { lastTypeToken = IT::IDDATATYPE::INT;   sign = LT::SIGNATURE::t_int; }
+                    else if (word == "string")  { lastTypeToken = IT::IDDATATYPE::STR;   sign = LT::SIGNATURE::t_string; }
+                    else if (word == "print")   { sign = LT::SIGNATURE::print; }
+                    else if (word == "get_time"){ sign = LT::SIGNATURE::time; }
+                    else if (word == "get_date"){ sign = LT::SIGNATURE::date; }
+                    else    { lastTypeToken = IT::IDDATATYPE::UNDEF; }
 
-                    if (word == "main") { scopeStack.push_back("main"); }
-                    else if (word == "for") { scopeStack.push_back(std::to_string(scopeScp++)); }
+                    if      (word == "main") { scopeStack.push_back("main"); }
+                    else if (word == "for")  { scopeStack.push_back(std::to_string(scopeScp++)); }
 
                     if (kw == LT_FUNCTION) afterFunctionKeyword = true;
 
                     if (word == "print" || word == "get_date" || word == "get_time") {
-                        IT::Entry identry_i(lt.size, word, word, IT::IDTYPE::C, IT::IDDATATYPE::NONE);
+                        IT::Entry identry_i(lt.size, word, word, IT::IDTYPE::F, IT::IDDATATYPE::STR);
                         identry_i.isDefined = true;
 
                         if (word == "print") {
@@ -111,10 +117,11 @@ namespace Lexer
                     }
                     continue;
                 }
-                else {  // идентификатор
+
+                // идентификатор
+                else { 
                     char lexema = LT_ID;
 
-                    // область видимости
                     std::string currScope = scopeStack.back();
                     std::string fullName;
                     fullName = word + "$" + currScope;
@@ -135,11 +142,23 @@ namespace Lexer
                         if (idxIT != IT_NULLIDX) break;
                     }
 
+                    bool previousIsType = (lt.size > 0 && lt.table[lt.size - 1].lexema == LT_TYPE);
+
+                    if (previousIsType) {
+                        std::string currentScopeName = word + "$" + scopeStack.back();
+                        int existsInCurrentScope = IT::IsId(it, currentScopeName);
+
+                        if (existsInCurrentScope != IT_NULLIDX) {
+                            std::cout << Colors::RED << "Error:   Переобъявление переменной \"" << word << "\" в 1 облости \"" << scopeStack.back() << "\"" << Colors::RESET << std::endl;
+                            ERROR_THROW_IN(200, line, position);
+                        }
+                    }
+
                     char sign = LT::SIGNATURE::variable;
-                    if (afterFunctionKeyword) {     // функция
+                    if (afterFunctionKeyword) {
                         sign = LT::SIGNATURE::function;
                     }
-                    else if (inFunctionHeader) {    // параметр
+                    else if (inFunctionHeader) {
                         sign = LT::SIGNATURE::parameter;
                     }
 
@@ -147,19 +166,18 @@ namespace Lexer
                         IT::IDTYPE     decidedType = IT::IDTYPE::V;
                         IT::IDDATATYPE decidedDataType = lastTypeToken;
 
-                        if (afterFunctionKeyword) {     // функция
+                        if (afterFunctionKeyword) {
                             decidedType = IT::IDTYPE::F;
                             afterFunctionKeyword = false;
                             afterFunctionName = true;
                             scopeStack.push_back(word);
                         }
-                        else if (inFunctionHeader) {    // параметр
+                        else if (inFunctionHeader) {
                             decidedType = IT::IDTYPE::P;
                         }
-                        fullName = fullName.substr(0, (IT_ID_MAXSIZE * 2 - 1));
 
                         IT::Entry identry_i(lt.size, word, fullName, decidedType, decidedDataType);
-                        if (decidedDataType == IT::IDDATATYPE::INT)    identry_i.value.vint = IT_INT_DEFAULT;
+                        if      (decidedDataType == IT::IDDATATYPE::INT)    identry_i.value.vint = IT_INT_DEFAULT;
                         else if (decidedDataType == IT::IDDATATYPE::CHR)    identry_i.value.vchr = IT_CHAR_DEFAULT;
                         else if (decidedDataType == IT::IDDATATYPE::STR)    strcpy_s(identry_i.value.vstr, sizeof(identry_i.value.vstr), IT_STR_DEFAULT);
 
@@ -170,46 +188,23 @@ namespace Lexer
                         sign = LT::SIGNATURE::call;
                         inFunctionHeader = true;
                     }
-                    else if (lt.table[lt.size - 1].lexema == LT_TYPE) {
-                        std::cerr << "Повторное создание переменной\n";
-                    }
 
                     LT::Entry identry_l(lexema, sign, line, ++tn, idxIT);
                     LT::Add(lt, identry_l);
                     continue;
                 }
             }
-            else if (isdigit(c) || c == '-') { // числовой литерал
+
+            // числовой литерал
+            else if (isdigit(c) || (c == '-' && i + 1 < in.size && isdigit(in.text[i + 1]))) {
                 if (c == '-') {
                     if (c == '-' && i + 1 < in.size && isdigit(in.text[i + 1])) {
                         isNegative = true;
                         i++; position++;
                     }
-                    else if (c == '-' && i + 1 < in.size && isspace(in.text[i + 1])) {
-                        char symbol = LT_OP_BINARY;
-                        char sign = LT::SIGNATURE::minus;
-                        ++i; ++position;
-
-                        LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);
-                        symbentry_l.lexema = symbol;
-                        LT::Add(lt, symbentry_l);
-                        continue;
-                    }
-                    else if (c == '-' && i + 1 < in.size && in.text[i + 1] == '-') {
-                        char symbol = LT_OP_UNARY;
-                        char sign = LT::SIGNATURE::dicrement;
-                        i++; position++;
-
-                        LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);
-                        symbentry_l.lexema = symbol;
-                        LT::Add(lt, symbentry_l);
-                        continue;
-                    }
-                    else {
-                        ERROR_THROW(201, line, position);
-                    }
                 }
-                if (in.text[i] == '0' && i + 1 < in.size && in.text[i + 1] == 'o') { // восьмеричный
+                // восьмеричная запись
+                if (in.text[i] == '0' && i + 1 < in.size && in.text[i + 1] == 'o') {
                     i += 2; position += 2;
 
                     std::string oct;
@@ -217,14 +212,24 @@ namespace Lexer
                         oct += in.text[i];
                         ++i; ++position;
                     }
+                    
+                    if (isalpha(in.text[i]) || isdigit(in.text[i]) && in.text[i] >= 8) {
+                        std::cout << Colors::RED << "Error: Недопустимый символ в записи восьмеричного числа '" <<
+                            in.text[i] << "'" << Colors::RESET << std::endl;
+                        ERROR_THROW_IN(206, line, position);
+                    }
                     --i; --position;
-
-                    if (oct.empty()) ERROR_THROW(201);
 
                     long long value = 0;
                     try {
                         for (char ch : oct) {
                             value = value * 8 + (ch - '0');
+                            if (value > IT_INT_MAXVALUE) {
+                                std::cout << Colors::RED << "Error: Переполнение целочисленного тиипа в восьмеричном литерале " <<
+                                    value << Colors::RESET << std::endl;
+                                ERROR_THROW_IN(201, line, position);
+                                break;
+                            }
                         }
                     }
                     catch (...) { ERROR_THROW(201); }
@@ -247,14 +252,16 @@ namespace Lexer
                     }
 
                     char sign = LT::SIGNATURE::variable;
-                    if (inFunctionHeader) {    // параметр
+                    if (inFunctionHeader) {
                         sign = LT::SIGNATURE::parameter;
                     }
                     LT::Entry octentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
                     LT::Add(lt, octentry_l);
                     continue;
                 }
-                else { // десятичный литерал
+
+                // десятичная запись
+                else {
                     std::string dec;
                     while (i < in.size && isdigit(in.text[i])) {
                         dec += in.text[i];
@@ -265,6 +272,13 @@ namespace Lexer
                     long long value = 0;
                     try { value = std::stoll(dec); }
                     catch (...) { ERROR_THROW(201); }
+
+                    if (value > IT_INT_MAXVALUE) {
+                        std::cout << Colors::RED << "Error: Переполнение целочисленного тиипа в дестяичном литерале " <<
+                            value << Colors::RESET << std::endl;
+                        ERROR_THROW_IN(201, line, position);
+                        break;
+                    }
 
                     if (isNegative) {
                         value *= (-1);
@@ -281,7 +295,7 @@ namespace Lexer
                     }
 
                     char sign = LT::SIGNATURE::variable;
-                    if (inFunctionHeader) {    // параметр
+                    if (inFunctionHeader) {
                         sign = LT::SIGNATURE::parameter;
                     }
                     LT::Entry decentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
@@ -290,20 +304,26 @@ namespace Lexer
                 }
             }
 
-            else if (c == '\"') { // строковый литерал
+            // строковый литерал
+            else if (c == '\"') {
                 i++; position++;
 
                 std::string str;
-                while (i < in.size && in.text[i] != '\"') {
+                while (in.text[i] != '|' && i < in.size && in.text[i] != '\"') {
                     str += in.text[i];
                     i++; position++;
                 }
 
-                if (i >= in.size || in.text[i] != '\"')
-                    ERROR_THROW(203, line, position);
+                if (i >= in.size || in.text[i] != '\"') {
+                    std::cout << Colors::RED << "Error: Незакрытый строковый литерал" << str << Colors::RESET << std::endl;
+                     ERROR_THROW_IN(204, line, position);
+                }
 
-                if (str.length() > IT_STR_MAXSIZE)
-                    ERROR_THROW(203, line, position);
+                if (str.length() > IT_STR_MAXSIZE) {
+                    std::cout << Colors::RED << "Error: Слишком большой строковый литерал  (максимальное значение " <<
+                        IT_STR_MAXSIZE << ")" << Colors::RESET << std::endl;
+                    ERROR_THROW_IN(202, line, position);
+                }
 
                 std::string fullName = "L_str_" + std::to_string(lt.size);
                 int idxIT = IT::IsId(it, fullName);
@@ -316,56 +336,28 @@ namespace Lexer
                 }
 
                 char sign = LT::SIGNATURE::variable;
-                if (inFunctionHeader) {    // параметр
+                if (inFunctionHeader) {
                     sign = LT::SIGNATURE::parameter;
                 }
                 LT::Entry strentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
                 LT::Add(lt, strentry_l);
             }
 
-            else if (c == '\'') { // символьный литерал
-                i++; position++;
-
-                std::string chr;
-                while (i < in.size && in.text[i] != '\'') {
-                    chr += in.text[i];
-                    i++; position++;
-                }
-
-                if (i >= in.size || in.text[i] != '\'' || chr.length() != 1)
-                    ERROR_THROW(203, line, colStart);
-
-                if (chr.length() != 1)
-                    ERROR_THROW(203, line, position);
-
-                std::string fullName = "L_chr_" + std::to_string(lt.size);
-                int idxIT = IT::IsId(it, fullName);
-                if (idxIT == IT_NULLIDX) {
-                    IT::Entry strentry_i(lt.size, chr, fullName, IT::IDTYPE::L, IT::IDDATATYPE::CHR);
-                    strentry_i.value.vchr = chr[0];
-
-                    IT::Add(it, strentry_i);
-                    idxIT = it.size - 1;
-                }
-
-                char sign = LT::SIGNATURE::variable;
-                if (inFunctionHeader) {    // параметр
-                    sign = LT::SIGNATURE::parameter;
-                }
-                LT::Entry strentry_l(LT_LITERAL, sign, line, ++tn, idxIT);
-                LT::Add(lt, strentry_l);
-                continue;
-            }
-            else {// символ/..
+            // символ/..
+            else {
                 char symbol = in.text[i];
                 char sign = symbol;
 
                 switch (symbol) {
                 case '{': symbol = LT_LEFTBRACE; break;
                 case '}': symbol = LT_RIGHTBRACE;
-                    if (scopeStack.size() > 1)
-                    {
+                    if (scopeStack.size() > 1) {
                         scopeStack.pop_back();
+                    }
+                    else {
+                        std::cout << Colors::RED << "Error: Несоответствующая закрывающая скобка '}'" << 
+                            Colors::RESET << std::endl;
+                        ERROR_THROW_IN(203, line, position);
                     }
                     break;
                 case '(': symbol = LT_LEFTHESIS;
@@ -388,7 +380,7 @@ namespace Lexer
                         symbol = LT_RANGE;
                         ++i; ++position;
                     }
-                    else ERROR_THROW(205, line, position);
+                    else ERROR_THROW_IN(205, line, position);
                     break;
                 case '+':
                     if (i + 1 < in.size && in.text[i + 1] == '+')
@@ -430,7 +422,8 @@ namespace Lexer
                 case '~': symbol = LT_OP_UNARY; sign = LT::SIGNATURE::inversion; break;
                 case '=': symbol = LT_EQUAL; break;
                 default:
-                    ERROR_THROW(205, line, position);
+                    std::cout << Colors::RED << "Error: Неопределённый символ '" << symbol << "'" << Colors::RESET << std::endl;
+                    ERROR_THROW_IN(205, line, position);
                 }
 
                 LT::Entry symbentry_l(symbol, sign, line, ++tn, IT_NULLIDX);

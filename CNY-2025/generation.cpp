@@ -64,8 +64,10 @@ namespace GN {
         for (int i = 0; i < lextable.size; i++) {
             char lex = lextable.table[i].lexema;
 
-            if (lex == LT_ID && (lextable.table[i].sign == LT::SIGNATURE::call || lextable.table[i].sign == LT::SIGNATURE::print ||
-                lextable.table[i].sign == LT::SIGNATURE::time || lextable.table[i].sign == LT::SIGNATURE::date)) {
+            if ((lex == LT_ID && (lextable.table[i].sign == LT::SIGNATURE::call || lextable.table[i].sign == LT::SIGNATURE::print ||
+                lextable.table[i].sign == LT::SIGNATURE::time || lextable.table[i].sign == LT::SIGNATURE::date)) ||
+                (lextable.table[i].tn == 1 && lextable.table[i].lexema == LT_OP_UNARY || 
+                 lextable.table[i].tn == 3 && lextable.table[i].lexema == LT_OP_UNARY)) {
                 PN::polishNotation(i, lextable, idtable);
                 *file << ProcessPolishString(lextable, idtable, i);
             }
@@ -164,6 +166,48 @@ namespace GN {
                 *file << ProcessPolishString(lextable, idtable, i);
                 *file << "\tpop eax\n\tmov " << target << ", eax\n";
             }
+            else if (lex == LT_OP_UNARY) {
+                std::string out;
+                IT::Entry var;
+                switch (lextable.table[i].sign) {
+                case LT::SIGNATURE::increment_post:
+                    // x++ : инкрементируем переменную в памяти.
+                    var = idtable.table[lextable.table[i - 1].idxIT];
+                    out += "\tinc " + string(var.fullName) + "\n";
+                    break;
+
+                case LT::SIGNATURE::dicrement_post:
+                    var = idtable.table[lextable.table[i - 1].idxIT];
+                    out += "\tdec " + string(var.fullName) + "\n";
+                    break;
+
+                case LT::SIGNATURE::pref_inversion:
+                    // ~x : операция над значением
+
+                    var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tpop eax\n";
+                    out += "\tnot eax\n";
+                    out += "\tpush eax\n";
+                    i++;
+                    break;
+
+                case LT::SIGNATURE::pref_increment:
+                    // ++x : значение еще не в стеке
+                    var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tinc " + string(var.fullName) + "\n";
+                    out += "\tpush " + string(var.fullName) + "\n";
+                    i++;
+                    break;
+
+                case LT::SIGNATURE::pref_dicrement:
+                    var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tdec " + string(var.fullName) + "\n";
+                    out += "\tpush " + string(var.fullName) + "\n";
+                    i++;
+                    break;
+                }
+                *file << out << "\n";
+            }
             else if (lex == LT_RETURN) {
                 i++;
                 PN::polishNotation(i, lextable, idtable);
@@ -232,7 +276,7 @@ namespace GN {
                     else
                         val = string(arg.fullName);
 
-                    if (k == 0) out += "\tmov eax, " + val + "\n";
+                    if      (k == 0) out += "\tmov eax, " + val + "\n";
                     else if (k == 1) out += "\tmov ebx, " + val + "\n";
                     else if (k == 2) out += "\tmov ecx, " + val + "\n";
                 }
@@ -253,38 +297,42 @@ namespace GN {
                 out += "\tpush eax\n";
                 break;
             }
-            case 'u': { // Обработка унарных операций
-                // Для инкремента/декремента нам нужен адрес переменной, которая шла ПЕРЕД операцией
-                // В ОПН это будет выглядеть так: i 'u'
-                IT::Entry& var = idtable.table[lextable.table[i - 1].idxIT];
-
+            case 'u': {
+                IT::Entry var;
                 switch (lextable.table[i].sign) {
                 case LT::SIGNATURE::increment_post:
-                    // x++ : Значение x уже в стеке. Просто инкрементируем переменную в памяти.
+                    // x++ : инкрементируем переменную в памяти.
+                    var = idtable.table[lextable.table[i - 1].idxIT];
                     out += "\tinc " + string(var.fullName) + "\n";
-                    break;
-
-                case LT::SIGNATURE::pref_increment:
-                    // ++x : Значение еще не в стеке (или там старое). 
-                    // Правильнее: инкрементируем в памяти, потом пушим актуальное.
-                    out += "\tinc " + string(var.fullName) + "\n";
-                    out += "\tpush " + string(var.fullName) + "\n";
-                    break;
-
-                case LT::SIGNATURE::pref_inversion:
-                    // ~x : Это просто операция над значением в стеке
-                    out += "\tpop eax\n";
-                    out += "\tnot eax\n";
-                    out += "\tpush eax\n";
                     break;
 
                 case LT::SIGNATURE::dicrement_post:
+                    var = idtable.table[lextable.table[i - 1].idxIT];
                     out += "\tdec " + string(var.fullName) + "\n";
                     break;
 
+                case LT::SIGNATURE::pref_inversion:
+                    // ~x : операция над значением
+                    var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tpop eax\n";
+                    out += "\tnot eax\n";
+                    out += "\tpush eax\n";
+                    i++;
+                    break;
+
+                case LT::SIGNATURE::pref_increment:
+                    // ++x : значение еще не в стеке
+                    var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tinc " + string(var.fullName) + "\n";
+                    out += "\tpush " + string(var.fullName) + "\n";
+                    i++;
+                    break;
+
                 case LT::SIGNATURE::pref_dicrement:
+                    var = idtable.table[lextable.table[i + 1].idxIT];
                     out += "\tdec " + string(var.fullName) + "\n";
                     out += "\tpush " + string(var.fullName) + "\n";
+                    i++;
                     break;
                 }
                 break;

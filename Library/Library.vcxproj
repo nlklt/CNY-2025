@@ -125,12 +125,6 @@
   <ItemGroup>
     <ClCompile Include="library.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\in.cny" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="..\in.cny.log" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

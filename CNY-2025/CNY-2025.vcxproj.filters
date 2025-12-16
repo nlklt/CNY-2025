@@ -57,7 +57,7 @@
     <ClCompile Include="semantic.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="ast.cpp">
+    <ClCompile Include="pst.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="generation.cpp">
@@ -92,7 +92,7 @@
     <ClInclude Include="semantic.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="ast.h">
+    <ClInclude Include="pst.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="generation.h">

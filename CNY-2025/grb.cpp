@@ -16,68 +16,73 @@ namespace GRB
 
 			Rule(NS('S'), GRB_ERROR_SERIES + 0, {	// Неверная тсруктура программы
 
-					{ TS('f'), TS('t'), TS('i'), NS('F'), TS('{'), NS('N'), TS('}'), NS('S')},
-					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
-					{ TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
+					{ TS('f'), TS('t'), TS('i'), TS('('),  NS('F'), TS(')'), TS('{'), NS('N'), TS('}'), NS('S')},
+					{ TS('f'), TS('t'), TS('i'), TS('('), TS(')'), TS('{'), NS('N'), TS('}'), NS('S')},
 					{ TS('t'), TS('i'), TS(';'), NS('S') },
+					{ TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
+					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('S') },
 					{ TS('t'), TS('m'), TS('('), TS(')'), TS('{'), NS('N'), TS('}'), NS('S') },
 					{ TS('$') }
 			}),
 			Rule(NS('N'), GRB_ERROR_SERIES + 1, {	//Ошибочный оператор
 
 					{ TS('t'), TS('i'), TS(';'), NS('N') },
+					{ TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
 					{ TS('t'), TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
 
+					{ TS('i'), TS('('), NS('W'), TS(')'), TS(';'), NS('N')},						// вызов функции
+					{ TS('i'), TS('('), TS(')'), TS(';'), NS('N')},						// вызов функции
+					
 					{ TS('}') },
-					{ TS('i'), TS('='), NS('E'), TS(';'), NS('N') },
-
-					{ TS('i'), NS('W'), TS(';'), NS('N') },
-					{ TS('i'), NS('W'), TS(';'), NS('N') },
-					{ TS('i'), TS('u'), TS(';'), NS('N') },
-					{ TS('u'), TS('i'), TS(';'), NS('N') },
-					{ TS('i'), TS('u'), TS(';'), NS('N') },
 					{ TS('c'), TS('t'), TS('i'), TS('='), NS('E'), TS('.'), NS('E'), TS('{'), NS('N'), NS('N')},
+
+					{ TS('i'), TS('u'), TS(';'), NS('N') },
+					{ TS('i'), TS('u'), NS('M'), TS(';'), NS('N') },
+					{ TS('u'), TS('i'), TS(';'), NS('N') },
+					{ TS('u'), TS('i'), NS('M'), TS(';'), NS('N') },
+					
 					{ TS('r'), NS('E'), TS(';') },
 					{ TS('r'), NS('E'), TS(';'), NS('N') }
 			}),
 			Rule(NS('E'), GRB_ERROR_SERIES + 2, {	//Ошибка в выражении
 
-					{ TS('i') },				// идентификатор
-					{ TS('l') },				// литерал
-					{ TS('i'), NS('M') },		// идентификатор с операциями
-					{ TS('l'), NS('M') },		// литерал с операциями
-					{ TS('('), NS('E'), TS(')') },
-					{ TS('('), NS('E'), TS(')'), NS('M') },
-					{ TS('i'), NS('W') },
-					{ TS('i'), NS('W'), NS('M') },
-					{ TS('u'), NS('E') },
-					{ TS('u'), NS('M'), NS('E') },
-					{ TS('i'), TS('u') },
-					{ TS('i'), TS('u'), NS('M') }
+					{ TS('i') },							// идентификатор
+					{ TS('l') },							// литерал
+					{ TS('i'), NS('M') },					// идентификатор с продолжением(действий)
+					{ TS('l'), NS('M') },					// литерал с операциями
+															
+					{ TS('u'), TS('i') },					// унарная операция с идентификатором
+					{ TS('u'), TS('l') },					// унарная операция с литералом
+					{ TS('u'), TS('i'), NS('M')},			// унарная операция с идентификатором с продолжением(действий)
+
+					{ TS('('), NS('E'), TS(')') },			// выражение в скобках
+					{ TS('('), NS('E'), TS(')'), NS('M') },	// выражение в скобках с прододжением(действий)
+
+					{ TS('i'), TS('('), NS('W'), TS(')') },				// вызов функции
+					{ TS('i'), TS('('), TS(')') },				// вызов функции
+					{ TS('i'), TS('('), TS(')'), NS('M') },	// вызов функции с продолжением(действий)
+					{ TS('i'), TS('('), NS('W'), TS(')'), NS('M') },	// вызов функции с продолжением(действий)
 			}),
 			Rule(NS('M'), GRB_ERROR_SERIES + 3,	{	//Ошибка в действиях
 
+					{ TS('u') },
+					{ TS('u'), NS('M')},
 					{ TS('v'), NS('E') },
 					{ TS('v'), NS('E'), NS('M') }
 			}),
 			Rule(NS('F'), GRB_ERROR_SERIES + 4,	{	//Ошибка в объявлении
 
-					{ TS('('), TS(')') },					// пустой параметрный список (в записи S мы допускаем fti ( F ) )
-					{ TS('('), NS('F'), TS(')')},					// пустой параметрный список (в записи S мы допускаем fti ( F ) )
-					{ TS('t'), TS('i'), TS(','), NS('F') }, // ti, F
+					{ TS('t'), TS('i'), TS(','), NS('F') }, // несколько параметров
 					{ TS('t'), TS('i') }                    // одиночный параметр
 			}),
 			Rule(NS('W'), GRB_ERROR_SERIES + 5, {	//Ошибка в параметрах
 
-					{ TS('('), TS(')')},
-					{ TS('('), NS('E'), TS(')')},
-					{ TS('('), NS('W'), TS(')')},
-					{ TS('('), TS('i'), NS('W'), TS(')') },
-					{ TS('('), TS('i'), NS('W'), NS('N'), TS(')') },
-					{ TS('i') },
-					{ TS('l') },
 					{ TS('i'), TS(','), NS('W') },
-					{ TS('l'), TS(','), NS('W') }
+					{ TS('l'), TS(','), NS('W') },
+					{ TS('i'), TS('('),NS('W'), TS(')')  },
+					{ TS('i'), TS('('), TS(')')  },
+					{ TS('i') },
+					{ TS('l') }
 			})
 		});
 
@@ -108,6 +113,23 @@ namespace GRB
 		return Rule();
 	}
 
+	char* Rule::getCRule(char* b, short nchain)
+	{
+		if (nchain >= 0 && nchain < chains.size())
+		{
+			char bchain[200];
+			b[0] = Chain::alphabet_to_char(nn);
+			b[1] = '-';
+			b[2] = '>';
+			b[3] = 0x00;
+			chains[nchain].getCChain(bchain);
+			strcat_s(b, 205, bchain);
+			return b;
+		}
+		b[0] = 0x00;
+		return b;
+	};
+
 	short Rule::getNextChain(GRBALPHABET t, Rule::Chain& pchain, short j)
 	{
 		for (short i = j; i < chains.size(); i++)
@@ -130,21 +152,4 @@ namespace GRB
 		b[nt.size()] = 0x00;
 		return b;
 	}
-
-	char* Rule::getCRule(char* b, short nchain)
-	{
-		if (nchain >= 0 && nchain < chains.size())
-		{
-			char bchain[200];
-			b[0] = Chain::alphabet_to_char(nn);
-			b[1] = '-';
-			b[2] = '>';
-			b[3] = 0x00;
-			chains[nchain].getCChain(bchain);
-			sprintf_s(b, 205, bchain);
-			return b;
-		}
-		b[0] = 0x00;
-		return b;
-	};
 }

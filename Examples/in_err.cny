@@ -1,0 +1,47 @@
+int main() {
+
+	int c = a-b;
+	int o = 0o1247 - -4; 
+
+# Ошибки лексического анализа
+	# !Обрезка
+		int aasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnm = 10;
+	# !Обрезка, переобъявление
+		# int aasdfghjklqwertyuiopxcvbnm_aasdf123456789;
+	# !Некорректная запись
+		# int o = 0o1238;
+	# !Переполнение
+		# int o = 0o1246562613-4;
+	# !Незакрытый
+		# string s = "aasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnm; 
+	# !Слишком большой
+		# string s = "aasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnmaasdfghjklqwertyuiopxcvbnm_aasdfghjklqwertyuiopxcvbnm";
+	# !Несоответствующая скобка
+		# }
+	# !Неопределенный символ
+		# \
+# Ошибки синтаксического анализа
+x = 10;
+x = x * 5;
+x = (a + b) / c;
+x = f() * g(3);
+foo(a, b);
+bar();
+
+# 1 = x;             # Ошибочный оператор присваиания N -> _i_ = E
+# x = ;				 # Ошибка в выражении E -> _i_ / _l_ /...
+# foo 1, 2;			 # Ошибка в действиях N -> i M -> _u_ /... / _v_ /...
+
+# 0;				 # Ошибочный оператр - бессмысленно
+# ab-c;				 # Ошибочный оператр N -> i _=_ E / i u
+
+# *3;		         # Ошибочный оператр N -> v - нету
+# foo(;				 # Ошибка в вызове N -> i ( _)_ ; N
+
+# +1 + 2;			 # Ошибочный оператор
+# 1 ++ 2;				 # Ошибочный оператор
+a + * b;			 # ошибка: после '+' должен идти операнд (нарушает правило E)
+
+
+	return 0;
+}

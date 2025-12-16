@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #define ERROR_THROW(id)           throw Error::geterror(id)
 #define ERROR_THROW_IN(id, l, c)  throw Error::geterrorin(id, l, c)
@@ -18,6 +19,18 @@
                                   ERROR_ENTRY_NODEF10(id+80),  ERROR_ENTRY_NODEF10(id+90)
 
 #define  ERROR_MAX_ENTRY  1000
+
+namespace Colors {
+    const std::string RESET = "\033[0m";
+
+    // цвета текста
+    const std::string RED = "\033[31m"; // красный
+    const std::string YELLOW = "\033[33m"; // желтый
+    const std::string GREEN = "\033[32m"; // зеленый
+    const std::string BLUE = "\033[34m"; // синий
+    const std::string CYAN = "\033[36m"; // голубой
+    const std::string MAGENTA = "\033[35m"; // пурпурный
+}
 
 namespace  Error
 {

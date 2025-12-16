@@ -1,7 +1,6 @@
 #pragma once
 
-#include "error.h"
-
+#include "Error.h"
 #include <vector>
 #include <initializer_list>
 
@@ -12,10 +11,10 @@ namespace GRB
 	/* ПРАВИЛО(правило в граматике)*/
 	struct Rule
 	{
+		struct Chain;
+
 		GRBALPHABET nn;				//нетерминал < 0
 		int iderror;				//id диагностического сообщения
-
-		struct Chain;
 		std::vector<Chain> chains;	//вектор правых частей
 
 		Rule() = default;
@@ -29,7 +28,6 @@ namespace GRB
 			char* b,	//буфер
 			short nchain//номер цепочки(правой части) в правиле
 		);
-
 		//Получить следующую за j подходящую цепочку? вернуть её номер : -1
 		short getNextChain(
 			GRBALPHABET t,			//первый символ цепочки
@@ -53,17 +51,17 @@ namespace GRB
 		//Получить правую сторону правила
 		char* getCChain(char* b);
 
-		// Терминал > 0
+		//Терминал > 0
 		static GRBALPHABET T(char t) { return GRBALPHABET(t); }
-		// Не терминал < 0
+		//Не терминал < 0
 		static GRBALPHABET N(char n) { return -GRBALPHABET(n); }
 
-		// Терминал?
+		//Терминал?
 		static bool isT(GRBALPHABET s) { return s > 0; }
-		// Не терминал?
+		//Не терминал?
 		static bool isN(GRBALPHABET s) { return !isT(s); };
 
-		// GRBALPHABET -> char
+		//GRBALPHABET -> char
 		static char alphabet_to_char(GRBALPHABET s) { return isT(s) ? char(s) : char(-s); };
 	};
 

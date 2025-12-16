@@ -3,8 +3,6 @@
 #define LT_MAXSIZE	    4096
 #define LT_NULLIDX	    0xfffff
 
-#define LT_EOF          'e'
-
 #define LT_MAIN		    'm'
 #define LT_TYPE 		't'
 #define LT_FOR	        'c'
@@ -66,10 +64,10 @@ namespace LT {
     struct Entry
     {
         char lexema = '-';              // один символ - лексема
-        char sign   = SIGNATURE::sign;  // знак лексемы
+        char sign   = SIGNATURE::sign;  // значение лексемы (какой именннот тип(t_int/t_str), операция(+, -, /, *), и тд.)
         int  sn     = -1;               // номер строки
         int  tn     = -1;               // номер токена
-        int  idxIT  = -1;               // индекс  в таблице идентификаторов
+        int  idxIT  = -1;               // индекс в таблице идентификаторов
 
         Entry() = default;
 

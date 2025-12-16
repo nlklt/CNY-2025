@@ -127,7 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ast.cpp" />
+    <ClCompile Include="pst.cpp" />
     <ClCompile Include="generation.cpp" />
     <ClCompile Include="grb.cpp" />
     <ClCompile Include="it.cpp" />
@@ -145,7 +145,7 @@
     <ClCompile Include="semantic.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ast.h" />
+    <ClInclude Include="pst.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="generation.h" />
     <ClInclude Include="grb.h" />

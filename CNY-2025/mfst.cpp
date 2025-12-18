@@ -1,6 +1,8 @@
 #include "mfst.h"
 #include "it.h"
 
+#include <fstream>
+
 int FST_TRACE_n = -1;
 char rbuf[205], sbuf[205], lbuf[1024];	//для печати
 
@@ -144,20 +146,16 @@ namespace MFST
 
 		switch (rc_step)
 		{
-		case LENTA_END:		// MFST_TRACE4("--------> LENTA_END")
-			// std::cout << "------------------------------------------------------------" << std::endl;
-			// sprintf_s(buf, MFST_DIAGN_MAXSIZE, "%d: всего строк %d, синтаксический анализ выполнен без ошибок", 0, lenta_size);
-			// std::cout << std::setw(4) << std::left << 0 << ": всего строк" << lenta_size << ", синтаксический анализ выполнен без ошибок" << std::endl;
+		case LENTA_END:
 			rc = true;
 			buildTree(idtable);
 			break;
-		case NS_NORULE:		// MFST_TRACE4("------->NS_NORULE")
-			//std::cout << "------------------------------------------------------------" << std::endl;
+		case NS_NORULE:
 			std::cout << Colors::RED << getDiagnosis(0, buf) << std::endl;
 			std::cout << getDiagnosis(1, buf) << std::endl;
 			std::cout << getDiagnosis(2, buf) << Colors::RESET << std::endl;
 			break;
-		case NS_NORULECHAIN:	// MFST_TRACE4("-------->NS_NORULECHAIN")
+		case NS_NORULECHAIN:
 			break;
 		case NS_ERROR:			MFST_TRACE4("-------->NS_ERROR")
 			break;
@@ -188,15 +186,16 @@ namespace MFST
 		return buf;
 	}
 
-	void Mfst::printrules()
+	void Mfst::printrules(std::ofstream* log)
 	{
 		MfstState state;
 		GRB::Rule rule;
+		*log << "------- Финальные правила -------\n";
 		for (unsigned short k = 0; k < storestate.size(); k++) {
 			state = storestate.c[k];
 			rule = grebach.getRule(state.nrule);
 			char buf[1024];
-			std::cout << std::setw(4) << k << std::setw(20) << rule.getCRule(buf, state.nrulechain) << std::endl;
+			*log << std::left << std::setw(4) << k << std::setw(20) << rule.getCRule(buf, state.nrulechain) << std::endl;
 		}
 	}
 

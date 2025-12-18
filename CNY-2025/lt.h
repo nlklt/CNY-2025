@@ -24,8 +24,9 @@
 #define LT_LEFTHESIS	'('
 #define LT_RIGHTHESIS   ')'
 
-//таблица лексем
+// лексическая таблица
 namespace LT {
+	// подписи лексем
     enum SIGNATURE
     {
         sign,
@@ -61,6 +62,7 @@ namespace LT {
         multiplication
     };
 
+	// запись лексемы
     struct Entry
     {
         char lexema = '-';              // один символ - лексема
@@ -74,7 +76,6 @@ namespace LT {
         Entry(char lexema_, char sign_, int sn_, int tn_, int idxIT_)
             : lexema(lexema_), sign(sign_), sn(sn_), tn(tn_), idxIT(idxIT_) { }
     };
-
     struct LexTable
     {
         int maxsize;

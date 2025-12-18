@@ -22,6 +22,8 @@
 int wmain(int argc, wchar_t* argv[]) {
     setlocale(LC_ALL, "rus");
 
+    Colors::enableColors();
+
     Log::LOG log = Log::INITLOG;
 
     LT::LexTable lextable = LT::Create(LT_MAXSIZE);
@@ -44,13 +46,14 @@ int wmain(int argc, wchar_t* argv[]) {
         Lexer::lexicalAnalysis(in, lextable, idtable);
         std::cout << Colors::GREEN << "Лексический анализ прошёл успешно." << Colors::RESET << std::endl;
 
-        Log::WriteLex(log, lextable, &idtable);
-        Log::WriteLexTable(log, lextable, &idtable);
+        if (log.stream) {
+            Log::WriteLexTable(*log.stream, lextable, &idtable);
+            Log::WriteIdTable(*log.stream, idtable);
+        }
 
         MFST::Mfst mfst(lextable, GRB::getGreibach());
         bool ok = mfst.start(idtable);
-        if (ok)
-        {
+        if (ok) {
             std::cout << Colors::GREEN << "Синтаксический анализ прошёл успешно." << Colors::RESET << std::endl;
 
             mfst.buildTree(idtable);
@@ -61,13 +64,12 @@ int wmain(int argc, wchar_t* argv[]) {
             else {
                 std::cerr << Colors::RED << "Ошибка записи в файл pst.dot." << Colors::RESET << std::endl;
             }
-
-            mfst.tree.print(mfst.tree.root, 0, log.stream);
         }
-        else
-        {
+        else {
             std::cout << Colors::RED << "Синтаксический анализ обнаружил ошибки." << Colors::RESET << std::endl;
         }
+
+        mfst.printrules(log.stream);
 
         SM::semanticAnalysis(lextable, idtable);
 
@@ -77,12 +79,13 @@ int wmain(int argc, wchar_t* argv[]) {
         Log::Close(log);
 
         std::ofstream asmFile(parm.out);
-        if (!asmFile.is_open())
-        {
+        if (!asmFile.is_open()) {
             std::cout << Colors::RED << "Ошибка: Не удалось открыть файл " << parm.out << Colors::RESET << std::endl;
         }
 
         GN::GenerationASM(&asmFile, lextable, idtable);
+
+        WriteLex(log, lextable, &idtable);
 
         LT::Delete(lextable);
         IT::Delete(idtable);
@@ -91,13 +94,15 @@ int wmain(int argc, wchar_t* argv[]) {
 
         std::cout << Colors::GREEN << "Успешное завершение." << Colors::RESET << std::endl;;
 
-        Log::WriteLine(log, (char*)"Ассемблер успешно сгенерирован.\n", "");
+        Log::WriteLine(log, (char*)"Ассемблер успешно сгенерирован.\n\n", "");
+        
         Log::WriteLine(log, (char*)"---------- Результат генерации --------\n", "");
         WriteLine(log, (wchar_t*)L"Файл с исходным кодом на языке ассемблер находится по пути: ", (wchar_t*)parm.out, L"");
     }
 
     catch (Error::ERROR e) {
-        std::cout << Colors::RED << "Error: В строке " << e.inext.line << " на позиции " << e.inext.col << ": " << e.message << "\n";
+        WriteError(log, e);
+        std::cout << Colors::RED << "Error: В строке " << e.inext.line << " на позиции/токене " << e.inext.col << ": " << e.message << "\n";
         Log::Close(log);
         return -1;
     }

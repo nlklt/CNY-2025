@@ -35,7 +35,7 @@ namespace SM {
     }
 
     void reportError(int code, int sn, int tn, const string& msg) {
-        cerr << "Semantic Error [" << code << "] at line " << sn << ", token " << tn << ": " << msg << endl;
+        cerr << Colors::RED << "Error [" << code << "] в строке: " << sn << ", позиция/токен: " << tn << ": " << msg << Colors::RESET << endl;
     }
 
     void checkFunctionCall(int funcItIdx, int openBracketPos, int& outCloseBracketPos, LT::LexTable& lextable, IT::IdTable& idtable);
@@ -70,7 +70,8 @@ namespace SM {
             }
             if (!isArgument && lex == '.') {
                 if (resultType != IT::INT || idtable.table[lextable.table[i + 1].idxIT].iddatatype != IT::INT) {
-                    reportError(308, lextable.table[i].sn, lextable.table[i].tn, "Типы значений должны быть целыми числовыми.");
+                    reportError(300, lextable.table[i].sn, lextable.table[i].tn, "Типы значений должны быть целыми числовыми.");
+                    ERROR_THROW_IN(300, lextable.table[i].sn, lextable.table[i].tn);
                 }
                 outEndPos = i;
                 return resultType;
@@ -86,6 +87,7 @@ namespace SM {
 
                 if (!entry.isDefined) {
                     reportError(301, lextable.table[i].sn, lextable.table[i].tn, "Использование неопределенного идентификатора: " + entry.id);
+                    ERROR_THROW_IN(301, lextable.table[i].sn, lextable.table[i].tn);
                 }
 
                 if (i + 1 < lextable.size && lextable.table[i + 1].lexema == '(' && lextable.table[i].sign == LT::call) {
@@ -101,6 +103,7 @@ namespace SM {
                         else if (resultType != entry.iddatatype) {
                             reportError(302, lextable.table[i].sn, lextable.table[i].tn,
                                 "Несоответствие типов в выражении: " + typeToString(resultType) + " и " + typeToString(entry.iddatatype));
+                            ERROR_THROW_IN(302, lextable.table[i].sn, lextable.table[i].tn);
                             outEndPos = i;
                             return IT::UNDEF;
                         }
@@ -116,6 +119,7 @@ namespace SM {
                     else if (resultType != litType) {
                         reportError(302, lextable.table[i].sn, lextable.table[i].tn,
                             "Несоответствие типов в выражении: " + typeToString(resultType) + " и " + typeToString(litType));
+                        ERROR_THROW_IN(302, lextable.table[i].sn, lextable.table[i].tn);
                         outEndPos = i;
                         return IT::UNDEF;
                     }
@@ -130,6 +134,7 @@ namespace SM {
                     else if (resultType != subType) {
                         reportError(302, lextable.table[i].sn, lextable.table[i].tn,
                             "Несоответствие типов в выражении (скобки): " + typeToString(resultType) + " и " + typeToString(subType));
+                        ERROR_THROW_IN(302, lextable.table[i].sn, lextable.table[i].tn);
                         outEndPos = subEnd;
                         return IT::UNDEF;
                     }
@@ -143,9 +148,15 @@ namespace SM {
             
             // операторы (+ - * / ++ -- ~)
             else if (lex == 'v' || lex == 'u') {
+                if (lex == 'v' && lextable.table[i + 1].lexema == LT_LITERAL && idtable.table[lextable.table[i + 1].idxIT].value.vint == 0) {
+                    reportError(312, lextable.table[i].sn, lextable.table[i].tn,
+                        "Деление числа на 0");
+                    ERROR_THROW_IN(312, lextable.table[i].sn, lextable.table[i].tn);
+                }
                 if (resultType == IT::STR) {
-                    reportError(308, lextable.table[i].sn, lextable.table[i].tn,
+                    reportError(303, lextable.table[i].sn, lextable.table[i].tn,
                         "Недопустимые операторы в выражении типа: " + typeToString(resultType) + " и " + signToString(lextable.table[i].sign));
+                    ERROR_THROW_IN(303, lextable.table[i].sn, lextable.table[i].tn);
                 }
             }
         }
@@ -161,17 +172,13 @@ namespace SM {
         int currentParamIndex = 0;
 
         int i = openBracketPos + 1;
-        if (i >= lextable.size) {
-            reportError(311, lextable.table[openBracketPos].sn, lextable.table[openBracketPos].tn, "Неожиданный конец файла после '('.");
-            outCloseBracketPos = lextable.size - 1;
-            return;
-        }
-
+        
         // пустой список аргументов
         if (lextable.table[i].lexema == ')') {
             outCloseBracketPos = i;
             if (expectedCount != 0) {
-                reportError(303, lextable.table[i].sn, lextable.table[i].tn, "Ожидались параметры для функции " + funcEntry.id);
+                reportError(304, lextable.table[i].sn, lextable.table[i].tn, "Ожидались параметры для функции " + funcEntry.id);
+                ERROR_THROW_IN(304, lextable.table[i].sn, lextable.table[i].tn);
             }
             return;
         }
@@ -184,11 +191,6 @@ namespace SM {
             if (endExprPos <= i) {
                 int seek = i;
                 while (seek < lextable.size && lextable.table[seek].lexema != ',' && lextable.table[seek].lexema != ')') seek++;
-                if (seek >= lextable.size) {
-                    reportError(312, lextable.table[lextable.size - 1].sn, lextable.table[lextable.size - 1].tn, "Неожиданный конец файла в аргументах.");
-                    outCloseBracketPos = lextable.size - 1;
-                    return;
-                }
                 endExprPos = seek;
             }
 
@@ -199,26 +201,22 @@ namespace SM {
                 if (funcEntry.id == "print") { }
                 else {
                     if (exprType == IT::UNDEF || exprType != IT::UNDEF && exprType != expectedType) {
-                        reportError(304, lextable.table[i].sn, lextable.table[i].tn,
+                        reportError(305, lextable.table[i].sn, lextable.table[i].tn,
                             "Неверный тип аргумента " + to_string(currentParamIndex + 1) +
                             " в функции " + funcEntry.id + ". Ожидался: " + typeToString(expectedType) +
                             ", получен: " + typeToString(exprType));
+                        ERROR_THROW_IN(305, lextable.table[i].sn, lextable.table[i].tn);
                     }
                 }
             }
             else {
-                reportError(305, lextable.table[i].sn, lextable.table[i].tn, "Слишком много аргументов для функции " + funcEntry.id);
+                reportError(301, lextable.table[i].sn, lextable.table[i].tn, "Слишком много аргументов для функции " + funcEntry.id);
+                ERROR_THROW_IN(301, lextable.table[i].sn, lextable.table[i].tn);
             }
 
             currentParamIndex++;
 
             i = endExprPos;
-
-            if (i >= lextable.size) {
-                reportError(312, lextable.table[lextable.size - 1].sn, lextable.table[lextable.size - 1].tn, "Неожиданный конец файла: ожидалась ')'");
-                outCloseBracketPos = lextable.size - 1;
-                return;
-            }
 
             if (lextable.table[i].lexema == ')') {
                 outCloseBracketPos = i;
@@ -228,17 +226,11 @@ namespace SM {
                 i++;
                 continue;
             }
-            else {
-                reportError(310, lextable.table[i].sn, lextable.table[i].tn, "Ожидалась ',' или ')'");
-                int seek = i;
-                while (seek < lextable.size && lextable.table[seek].lexema != ')') seek++;
-                outCloseBracketPos = (seek < lextable.size) ? seek : (lextable.size - 1);
-                return;
-            }
         }
 
         if (currentParamIndex < expectedCount) {
             reportError(306, lextable.table[outCloseBracketPos].sn, lextable.table[outCloseBracketPos].tn, "Недостаточно аргументов для функции " + funcEntry.id);
+            ERROR_THROW_IN(306, lextable.table[i].sn, lextable.table[i].tn);
         }
     }
 
@@ -270,7 +262,8 @@ namespace SM {
                                 funcEntry.params.types.push_back(idtable.table[lextable.table[i].idxIT].iddatatype);
                             }
                             if (funcEntry.params.count > 3) {
-                                reportError(310, lextable.table[i].sn, lextable.table[i].tn, "Превышено число допустимых параметров функции." + funcEntry.id);
+                                reportError(307, lextable.table[i].sn, lextable.table[i].tn, "Превышено число допустимых параметров функции." + funcEntry.id);
+                                ERROR_THROW_IN(307, lextable.table[i].sn, lextable.table[i].tn);
                             }
                         }
                     }
@@ -306,6 +299,7 @@ namespace SM {
             else if (lex.lexema == 'r') {
                 if (context.braceDepth == 0) {
                     reportError(308, lex.sn, lex.tn, "Оператор return вне функции.");
+                    ERROR_THROW_IN(308, lextable.table[i].sn, lextable.table[i].tn);
                 }
                 else {
                     int endExpr = 0;
@@ -315,6 +309,7 @@ namespace SM {
                         reportError(309, lex.sn, lex.tn,
                             "Тип возвращаемого значения " + typeToString(retType) +
                             " не соответствует типу функции " + typeToString(context.currentFuncType));
+                        ERROR_THROW_IN(309, lextable.table[i].sn, lextable.table[i].tn);
                     }
                     i = endExpr;
                 }
@@ -354,7 +349,8 @@ namespace SM {
                 // присваивание: идентификатор '=' выражение
                 if (entry.idtype == IT::V || entry.idtype == IT::P) {
                     if (!entry.isDefined) {
-                        reportError(301, lex.sn, lex.tn, "Переменная '" + entry.id + "' не определена.");
+                        reportError(310, lex.sn, lex.tn, "Переменная '" + entry.id + "' не определена.");
+                        ERROR_THROW_IN(310, lextable.table[i].sn, lextable.table[i].tn);
                     }
 
                     if (i + 1 < lextable.size && lextable.table[i + 1].lexema == '=') {
@@ -362,8 +358,9 @@ namespace SM {
                         IT::IDDATATYPE rhsType = analyzeExpression(i + 2, endExpr, lextable, idtable, false);
 
                         if (rhsType != IT::UNDEF && rhsType != entry.iddatatype) {
-                            reportError(307, lex.sn, lex.tn,
+                            reportError(310, lex.sn, lex.tn,
                                 "Невозможно присвоить " + typeToString(rhsType) + " переменной типа " + typeToString(entry.iddatatype));
+                            ERROR_THROW_IN(310, lextable.table[i].sn, lextable.table[i].tn);
                         }
 
                         i = endExpr;
@@ -372,6 +369,11 @@ namespace SM {
                 }
             }
             // прочие токены — пропускаем
+        }
+        if (lextable.table[lextable.size - 4].lexema != 'r') {
+            reportError(313, lextable.table[lextable.size - 4].sn, lextable.table[lextable.size - 4].tn,
+                "Обязателен возврат значения в функции main");
+            ERROR_THROW_IN(313, lextable.table[lextable.size - 4].sn, lextable.table[lextable.size - 4].tn);
         }
     }
 

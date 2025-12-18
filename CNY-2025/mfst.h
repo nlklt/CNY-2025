@@ -7,6 +7,7 @@
 #include <stack>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 
 extern int FST_TRACE_n;
 extern char rbuf[205], sbuf[205], lbuf[1024];	//для печати
@@ -137,7 +138,7 @@ namespace MFST
 		//Сохранение диагностики работы МП-автомата
 		bool savediagnosis(RC_STEP pprc_step);
 		//Вывести последовательность правил
-		void printrules();
+		void printrules(std::ofstream* log);
 
 		/*ВЫВОД*/
 		struct Deducation

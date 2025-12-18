@@ -13,264 +13,231 @@
 #include <cstring>
 #include <map>
 
-namespace Log {
-    // --- Вспомогательные функции преобразования в строку ---
-    const char* LexemeToString(char lex) {
-        static char buf[8];
+namespace Log {// --------------------- Вспомогательные функции (исправлённые) ---------------------
+
+    static std::string TruncatePad(const std::string& s, size_t width) {
+        if (width == 0) return "";
+        if (s.size() <= width) {
+            std::string out = s;
+            out.append(width - s.size(), ' ');
+            return out;
+        }
+        if (width <= 3) return std::string(width, '.');
+        // оставляем место для "..."
+        std::string out = s.substr(0, width - 3);
+        out += "...";
+        return out;
+    }
+
+    static std::string SafeVStr(const char* s) {
+        if (!s) return "";
+        // больше не используем фиксированный большой лимит; обрезим при выводе через TruncatePad
+        return std::string(s);
+    }
+
+    static std::string LexemeToString(char lex) {
         switch (lex) {
-        case LT_MAIN:      return "main";
-        case LT_TYPE:      return "type";
-        case LT_FOR:       return "for";
-        case LT_FUNCTION:  return "function";
-        case LT_RETURN:    return "return";
-        case LT_ID:        return "id";
-        case LT_LITERAL:   return "literal";
-        case LT_EQUAL:     return "=";
-        case LT_OP_UNARY:  return "unary_op";
-        case LT_OP_BINARY: return "binary_op";
-        case LT_RANGE:     return ".";
-        case LT_COMMA:     return ",";
-        case LT_SEMICOLON: return ";";
-        case LT_LEFTBRACE: return "{";
-        case LT_RIGHTBRACE:return "}";
-        case LT_LEFTHESIS: return "(";
-        case LT_RIGHTHESIS:return ")";
-        default:
-            // если символ печатный — вернуть как односимвольную строку
-            if (isprint(static_cast<unsigned char>(lex))) {
-                buf[0] = lex;
-                buf[1] = '\0';
-                return buf;
-            }
-            return "unknown";
+        case LT_MAIN:        return "main";
+        case LT_TYPE:        return "type";
+        case LT_FOR:         return "for";
+        case LT_FUNCTION:    return "function";
+        case LT_RETURN:      return "return";
+        case LT_ID:          return "id";
+        case LT_LITERAL:     return "lit";
+        case LT_EQUAL:       return "=";
+        case LT_OP_UNARY:    return "op_un";
+        case LT_OP_BINARY:   return "op_bin";
+        case LT_RANGE:       return "..";
+        case LT_COMMA:       return ",";
+        case LT_SEMICOLON:   return ";";
+        case LT_LEFTBRACE:   return "{";
+        case LT_RIGHTBRACE:  return "}";
+        case LT_LEFTHESIS:   return "(";
+        case LT_RIGHTHESIS:  return ")";
+        default: {
+            std::ostringstream ss;
+            if (std::isprint(static_cast<unsigned char>(lex))) ss << lex;
+            else ss << "0x" << std::hex << (int)(unsigned char)lex;
+            return ss.str();
+        }
         }
     }
 
-    const char* MeanToString(unsigned char sign) {
-        // см. LT::SIGNATURE — перечислить основные варианты
+    static std::string SignToString(unsigned char sign) {
+        using SIGN = LT::SIGNATURE;
         switch (sign) {
-        case LT::SIGNATURE::sign:        return "sign";
-        case LT::SIGNATURE::t_int:       return "t_int";
-        case LT::SIGNATURE::t_char:      return "t_char";
-        case LT::SIGNATURE::t_string:    return "t_string";
-        case LT_LITERAL:                 return "literal";
-        case LT::SIGNATURE::print:       return "print";
-        case LT::SIGNATURE::date:        return "date";
-        case LT::SIGNATURE::time:        return "time";
-        case LT::SIGNATURE::increment:   return "increment";
-        case LT::SIGNATURE::dicrement:   return "dicrement";
-        case LT::SIGNATURE::inversion:   return "inversion";
-        case LT::SIGNATURE::plus:        return "plus";
-        case LT::SIGNATURE::minus:       return "minus";
-        case LT::SIGNATURE::division:    return "division";
-        case LT::SIGNATURE::multiplication: return "multiplication";
-        default: return "unknown_sign";
+        case SIGN::sign:               return "sign";
+        case SIGN::t_int:              return "t_int";
+        case SIGN::t_char:             return "t_char";
+        case SIGN::t_string:           return "t_string";
+        case SIGN::variable:           return "variable";
+        case SIGN::function:           return "function";
+        case SIGN::call:               return "call";
+        case SIGN::parameter:          return "parameter";
+        case SIGN::print:              return "print";
+        case SIGN::date:               return "date";
+        case SIGN::time:               return "time";
+        case SIGN::increment:          return "inc";
+        case SIGN::dicrement:          return "dec";
+        case SIGN::inversion:          return "inv";
+        case SIGN::increment_post:     return "inc_post";
+        case SIGN::dicrement_post:     return "dec_post";
+        case SIGN::inversion_post:     return "inv_post";
+        case SIGN::pref_increment:     return "pref_inc";
+        case SIGN::pref_dicrement:     return "pref_dec";
+        case SIGN::pref_inversion:     return "pref_inv";
+        case SIGN::plus:               return "+";
+        case SIGN::minus:              return "-";
+        case SIGN::division:           return "/";
+        case SIGN::multiplication:     return "*";
+        default:
+            return "unknown_sign";
         }
     }
 
-    const char* IdTypeToString(IT::IDTYPE t) {
+    static std::string IdTypeToString(IT::IDTYPE t) {
         switch (t) {
         case IT::V: return "VAR";
         case IT::F: return "FUNC";
         case IT::P: return "PARAM";
         case IT::C: return "CONST";
-        case IT::L: return "LABEL";
+        case IT::L: return "LIT";
         default:    return "UNKNOWN";
         }
     }
 
-    const char* IdDataTypeToString(IT::IDDATATYPE dt) {
-        switch (dt) {
+    static std::string IdDataTypeToString(IT::IDDATATYPE t) {
+        switch (t) {
         case IT::INT:  return "INT";
         case IT::CHR:  return "CHR";
         case IT::STR:  return "STR";
+        case IT::ANY:  return "ANY";
         case IT::NONE: return "NONE";
-        case IT::UNDEF: return "UNDEF";
-        default: return "UNK_DTYPE";
+        case IT::UNDEF:return "UNDEF";
+        default: return "UNK";
         }
     }
 
-    // --- Полезная утилита для безопасного получения C-string из value.vstr ---
-    std::string SafeVStr(const char* vstr) {
-        if (!vstr) return "";
-        size_t n = strnlen(vstr, IT_STR_MAXSIZE);
-        return std::string(vstr, n);
-    }
+    // WriteLexTable
 
-    // --- Функция вывода таблицы лексем (расширенная) ---
-    void WriteLexTable(LOG log, LT::LexTable& lt, IT::IdTable* it)
-    {
-        if (!log.stream) return;
-        std::ostream& out = *log.stream;
+    void WriteLexTable(std::ostream& out, const LT::LexTable& lt, const IT::IdTable* it) {
+        if (!out) return;
 
-        out << "---------- Таблица лексем (LT) ----------" << std::endl;
-        out << "Всего лексем: " << lt.size << std::endl << std::endl;
+        out << "---------- Таблица лексем (LT) ----------\n";
+        out << "Maxsize: " << lt.maxsize << "    Size: " << lt.size << "\n\n";
 
-        // Ширины колонок
         const int W_IDX = 6;
-        const int W_LEX = 12;
-        const int W_MEAN = 18;
+        const int W_LEX = 14; 
+        const int W_SIGN = 14; 
         const int W_SN = 6;
         const int W_TN = 6;
-        const int W_IT = 6;
+        const int W_IT = 8;
 
         out << std::left
-            << std::setw(W_IDX) << "Idx"
-            << std::setw(W_LEX) << "lexema"
-            << std::setw(W_MEAN) << "mean"
-            << std::setw(W_SN) << "sn"
-            << std::setw(W_TN) << "tn"
-            << std::setw(W_IT) << "idxIT"
-            << std::endl;
+            << TruncatePad("Idx", W_IDX)
+            << TruncatePad("lexema", W_LEX)
+            << TruncatePad("sign", W_SIGN)
+            << TruncatePad("sn", W_SN)
+            << TruncatePad("tn", W_TN)
+            << TruncatePad("idxIT", W_IT)
+            << "\n";
 
-        std::string sep(W_IDX + W_LEX + W_MEAN + W_SN + W_TN + W_IT, '-');
-        out << sep << std::endl;
+        out << std::string(W_IDX + W_LEX + W_SIGN + W_SN + W_TN + W_IT, '-') << "\n";
 
         for (int i = 0; i < lt.size; ++i) {
-            LT::Entry& e = lt.table[i];
+            const LT::Entry& e = lt.table[i];
+
             std::string lex = LexemeToString(e.lexema);
-            const char* mean = MeanToString(static_cast<unsigned char>(e.sign));
+            std::string sign = SignToString(static_cast<unsigned char>(e.sign));
+            std::string idxITstr = (e.idxIT == IT_NULLIDX || e.idxIT < 0) ? "-" : std::to_string(e.idxIT);
 
             out << std::left
-                << std::setw(W_IDX) << i
-                << std::setw(W_LEX) << lex
-                << std::setw(W_MEAN) << mean
-                << std::setw(W_SN) << e.sn
-                << std::setw(W_TN) << e.tn
-                << std::setw(W_IT) << ((e.idxIT == IT_NULLIDX) ? "-" : std::to_string(e.idxIT));
+                << TruncatePad(std::to_string(i), W_IDX)
+                << TruncatePad(lex, W_LEX)
+                << TruncatePad(sign, W_SIGN)
+                << TruncatePad(std::to_string(e.sn), W_SN)
+                << TruncatePad(std::to_string(e.tn), W_TN)
+                << TruncatePad(idxITstr, W_IT);
 
-            // Если есть связь с IT и передана таблица идентификаторов — вывести расширенную информацию
             if (it != nullptr && e.idxIT != IT_NULLIDX && e.idxIT >= 0 && e.idxIT < it->size) {
-                IT::Entry& ident = it->table[e.idxIT];
+                const IT::Entry& ident = it->table[e.idxIT];
 
-                // значение как строка
-                std::string valueStr = "N/A";
-                if (ident.iddatatype == IT::INT) {
-                    valueStr = "|" + std::to_string(ident.value.vint) + "|";
-                }
-                else if (ident.iddatatype == IT::STR) {
-                    valueStr = "\"" + SafeVStr(ident.value.vstr) + "\"";
-                }
+                std::string valueStr = "-";
+                if (ident.iddatatype == IT::INT) valueStr = std::to_string(ident.value.vint);
+                else if (ident.iddatatype == IT::STR) valueStr = "\"" + SafeVStr(ident.value.vstr) + "\"";
                 else if (ident.iddatatype == IT::CHR) {
-                    char tmp = ident.value.vchr;
-                    std::ostringstream oss;
-                    oss << "'" << tmp << "'";
-                    valueStr = oss.str();
+                    std::ostringstream tmp; tmp << "'" << ident.value.vchr << "'"; valueStr = tmp.str();
                 }
-                else {
-                    valueStr = "-";
-                }
-
-                out << " -> IT: id=\"" << std::setw(20) << ident.id
-                    << " type=" << std::setw(6) << IdTypeToString(ident.idtype)
-                    << " dtype=" << std::setw(6) << IdDataTypeToString(ident.iddatatype)
-                    << " value=" << std::setw(12) << valueStr;
-
-                // idxfirstLT
-                out << " idxFirstLT=" << (ident.idxfirstLT >= 0 ? std::to_string(ident.idxfirstLT) : std::string("-"));
-
-                // params (если есть)
-                out << " paramsCount=" << ident.params.count;
-                if (ident.params.count > 0) {
-                    out << " (";
-                    for (size_t pi = 0; pi < ident.params.types.size(); ++pi) {
-                        out << IdDataTypeToString(ident.params.types[pi]);
-                        if (pi + 1 < ident.params.types.size()) out << ",";
-                    }
-                    out << ")";
-                }
-
-                // fullName и isDefined
-                out << " fullName=\"" << ident.fullName << "\"";
-                out << " defined=" << (ident.isDefined ? "yes" : "no");
-
-                out << std::endl;
             }
-            else {
-                out << std::endl;
-            }
+
+            out << "\n";
         }
 
-        out << std::endl;
+        out << "\n";
     }
 
-    // --- Функция вывода таблицы идентификаторов (IT) ---
-    void WriteIdTable(LOG log, IT::IdTable& it, LT::LexTable* lt)
-    {
-        if (!log.stream) return;
-        std::ostream& out = *log.stream;
+    // WriteIdTable
 
-        out << "---------- Таблица идентификаторов (IT) ----------" << std::endl;
-        out << "Всего идентификаторов: " << it.size << std::endl << std::endl;
+    void WriteIdTable(std::ostream& out, const IT::IdTable& it) {
+        if (!out) return;
 
-        // Заголовки
+        out << "------- Таблица идентификаторов (IT) -------\n";
+        out << "Maxsize: " << it.maxsize << "    Size: " << it.size << "\n\n";
+
         const int W_IDX = 6;
-        const int W_NAME = 22;
-        const int W_SCOPE = 12;
-        const int W_IDTYPE = 8;
-        const int W_IDDT = 8;
-        const int W_IDXFIRST = 10;
+        const int W_ID = 90;
+        const int W_FULL = 28;
+        const int W_ITYPE = 8;
+        const int W_DTYPE = 8;
+        const int W_DEFINED = 9;
 
         out << std::left
-            << std::setw(W_IDX) << "Idx"
-            << std::setw(W_NAME) << "id"
-            << std::setw(W_IDTYPE) << "idType"
-            << std::setw(W_IDDT) << "dtype"
-            << std::setw(W_IDXFIRST) << "idxFirstLT"
-            << std::endl;
+            << TruncatePad("Idx", W_IDX)
+            << TruncatePad("id", W_ID)
+            << TruncatePad("fullName", W_FULL)
+            << TruncatePad("idType", W_ITYPE)
+            << TruncatePad("dataType", W_DTYPE)
+            << TruncatePad("defined", W_DEFINED)
+            << " value / params"
+            << "\n";
 
-        std::string sep(W_IDX + W_NAME + W_SCOPE + W_IDTYPE + W_IDDT + W_IDXFIRST, '-');
-        out << sep << std::endl;
+        out << std::string(W_IDX + W_ID + W_FULL + W_ITYPE + W_DTYPE + W_DEFINED + 20, '-') << "\n";
 
         for (int i = 0; i < it.size; ++i) {
-            IT::Entry& e = it.table[i];
+            const IT::Entry& e = it.table[i];
+
+            std::string valueStr = "-";
+            if (e.iddatatype == IT::INT) valueStr = std::to_string(e.value.vint);
+            else if (e.iddatatype == IT::STR) valueStr = "\"" + SafeVStr(e.value.vstr) + "\"";
+            else if (e.iddatatype == IT::CHR) {
+                std::ostringstream tmp; tmp << "'" << e.value.vchr << "'"; valueStr = tmp.str();
+            }
 
             out << std::left
-                << std::setw(W_IDX) << i
-                << std::setw(W_NAME) << e.id
-                << std::setw(W_IDTYPE) << IdTypeToString(e.idtype)
-                << std::setw(W_IDDT) << IdDataTypeToString(e.iddatatype)
-                << std::setw(W_IDXFIRST) << (e.idxfirstLT >= 0 ? std::to_string(e.idxfirstLT) : std::string("-"));
+                << TruncatePad(std::to_string(i), W_IDX)
+                << TruncatePad(e.id, W_ID)
+                << TruncatePad(e.fullName, W_FULL)
+                << TruncatePad(IdTypeToString(e.idtype), W_ITYPE)
+                << TruncatePad(IdDataTypeToString(e.iddatatype), W_DTYPE)
+                << TruncatePad((e.isDefined ? "yes" : "no"), W_DEFINED);
 
-            // value
-            std::string valueStr = "N/A";
-            if (e.iddatatype == IT::INT) {
-                valueStr = std::to_string(e.value.vint);
-            }
-            else if (e.iddatatype == IT::STR) {
-                valueStr = "\"" + SafeVStr(e.value.vstr) + "\"";
-            }
-            else if (e.iddatatype == IT::CHR) {
-                std::ostringstream oss;
-                oss << "'" << e.value.vchr << "'";
-                valueStr = oss.str();
-            }
-            out << " value=" << std::setw(14) << valueStr;
+            out << " idxFirstLT=" << (e.idxfirstLT >= 0 ? std::to_string(e.idxfirstLT) : std::string("-"));
+            out << " value=" << TruncatePad(valueStr, 18);
 
-            // Параметры (для функций)
             out << " paramsCount=" << e.params.count;
             if (e.params.count > 0) {
                 out << " (";
-                for (size_t j = 0; j < e.params.types.size(); ++j) {
-                    out << IdDataTypeToString(e.params.types[j]);
-                    if (j + 1 < e.params.types.size()) out << ",";
+                for (size_t pi = 0; pi < e.params.types.size(); ++pi) {
+                    out << IdDataTypeToString(e.params.types[pi]);
+                    if (pi + 1 < e.params.types.size()) out << ",";
                 }
                 out << ")";
             }
 
-            // fullName и isDefined
-            out << " fullName=\"" << e.fullName << "\"";
-            out << " defined=" << (e.isDefined ? "yes" : "no");
-
-            // опционально: показать внешние ссылки на LT (если передали lt)
-            if (lt != nullptr && e.idxfirstLT >= 0 && e.idxfirstLT < lt->size) {
-                out << " -> LT[" << e.idxfirstLT << "] lexema='" << LexemeToString(lt->table[e.idxfirstLT].lexema) << "'";
-            }
-
-            out << std::endl;
+            out << "\n";
         }
 
-        out << std::endl;
+        out << "\n";
     }
 
     LOG getlog(wchar_t logfile[])
@@ -393,7 +360,7 @@ namespace Log {
 
             if (error.inext.line >= 0 && error.inext.col >= 0)
             {
-                WriteLine(log, (char*)"Ошибка: ", (char*)error.message, (char*)"  строка: ", (char*)linebuf, (char*)"  позиция: ", (char*)colbuf, (char*)"", "");
+                WriteLine(log, (char*)"Ошибка: ", (char*)error.message, (char*)"  строка: ", (char*)linebuf, (char*)"  позиция/токен: ", (char*)colbuf, (char*)"", "");
             }
             else
             {
@@ -418,8 +385,7 @@ namespace Log {
         char ltsize[32];
         sprintf_s(ltsize, "%d", lt.size);
 
-        WriteLine(log, (char*)"\n---------- Только лексемы -----------", (char*)"", "");
-        WriteLine(log, (char*)"Всего лексем: ", (char*)ltsize, (char*)"", "");
+        WriteLine(log, (char*)"\n\n---------- Таблица лексем после полиза -----------", (char*)"", "");
 
         int currLine = -1;
 
@@ -448,4 +414,4 @@ namespace Log {
         {
         }
     }
-} // namespace Log
+}

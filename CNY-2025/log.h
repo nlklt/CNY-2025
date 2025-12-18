@@ -36,6 +36,7 @@ namespace Log
     void WriteError(LOG log, Error::ERROR error); // вывести в протокол информацию об ошибке
 
     // Таблицы (WriteLexTable может принимать дополнительную таблицу идентификаторов для расширенного вывода)
-    void WriteLexTable(LOG log, LT::LexTable& lt, IT::IdTable* it = nullptr);
-    void WriteLex(LOG log, LT::LexTable& lt, IT::IdTable* it = nullptr);
+    void WriteLexTable(std::ostream& out, const LT::LexTable& lt, const IT::IdTable* it);
+    void WriteIdTable(std::ostream& out, const IT::IdTable& it);
+    void WriteLex(LOG log, LT::LexTable& lt, IT::IdTable* it);
 }

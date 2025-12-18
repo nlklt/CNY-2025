@@ -1,5 +1,22 @@
 #include "error.h"
 
+namespace Colors {
+    void enableColors() {
+#ifdef _WIN32
+        // получаем дескриптор стандартного вывода
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (hOut == INVALID_HANDLE_VALUE) return;
+
+        DWORD dwMode = 0;
+        if (!GetConsoleMode(hOut, &dwMode)) return;
+
+        // включаем флаг обработки управляющих последовательностей
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(hOut, dwMode);
+#endif
+    }
+}
+
 namespace Error
 {
     /*серии ошибок: 0 - 99    - системные ошибки
@@ -43,20 +60,41 @@ namespace Error
             ERROR_ENTRY_NODEF10(130), ERROR_ENTRY_NODEF10(140), ERROR_ENTRY_NODEF10(150),
             ERROR_ENTRY_NODEF10(160), ERROR_ENTRY_NODEF10(170), ERROR_ENTRY_NODEF10(180), ERROR_ENTRY_NODEF10(190),
 
-            ERROR_ENTRY(200, "Переобъявление переменной в 1 облости видимости"),
-            ERROR_ENTRY(201, "Переполнение целочисленного типа"),
-            ERROR_ENTRY(202, "Строковый литерал превышает максимальную длину"),
-            ERROR_ENTRY(203, "Несоответствующая закрывающая скобка '}'"),
-            ERROR_ENTRY(204, "Незакрытый строковый литерал"),
-            ERROR_ENTRY(205, "Неизвестный символ"),
-            ERROR_ENTRY(206, "Недопустимый символ в записи восьмеричного числа"),
-            ERROR_ENTRY_NODEF(207), ERROR_ENTRY_NODEF(208), ERROR_ENTRY_NODEF(209),
+            ERROR_ENTRY(200, "Переобъявление переменной в 1 области видимости   "),
+            ERROR_ENTRY(201, "Переполнение целочисленного типа                  "),
+            ERROR_ENTRY(202, "Строковый литерал превышает максимальную длину    "),
+            ERROR_ENTRY(203, "Несоответствующая закрывающая скобка '}'          "),
+            ERROR_ENTRY(204, "Незакрытый строковый литерал                      "),
+            ERROR_ENTRY(205, "Неизвестный символ                                "),
+            ERROR_ENTRY(206, "Недопустимый символ в записи восьмеричного числа. "),
+            ERROR_ENTRY(207, "Обнаружено несколько точек входа main.            "),
+            ERROR_ENTRY(208, "Не обнаружено точки входа main.                   "),
+            ERROR_ENTRY_NODEF(209),
 
-            ERROR_ENTRY_NODEF10(110), ERROR_ENTRY_NODEF10(120), ERROR_ENTRY_NODEF10(130), ERROR_ENTRY_NODEF10(140),
-            ERROR_ENTRY_NODEF10(150), ERROR_ENTRY_NODEF10(160), ERROR_ENTRY_NODEF10(170), ERROR_ENTRY_NODEF10(180),
-            ERROR_ENTRY_NODEF10(190),
+            ERROR_ENTRY_NODEF10(210), ERROR_ENTRY_NODEF10(220), ERROR_ENTRY_NODEF10(230), ERROR_ENTRY_NODEF10(240),
+            ERROR_ENTRY_NODEF10(250), ERROR_ENTRY_NODEF10(260), ERROR_ENTRY_NODEF10(270), ERROR_ENTRY_NODEF10(280),
+            ERROR_ENTRY_NODEF10(290),
 
-            ERROR_ENTRY_NODEF100(300), ERROR_ENTRY_NODEF100(400), ERROR_ENTRY_NODEF100(500),
+            ERROR_ENTRY(300, "Типы значений должны быть целыми числовыми."),
+            ERROR_ENTRY(301, "Использование неопределенного идентификатора."),
+            ERROR_ENTRY(302, "Несоответствие типов в выражении."),
+            ERROR_ENTRY(303, "Недопустимые операторы в выражении."),
+            ERROR_ENTRY(304, "Ожидались параметры для функции."),
+            ERROR_ENTRY(305, "Неверный тип аргумента."),
+            ERROR_ENTRY(306, "Недостаточно аргументов для функции."),
+            ERROR_ENTRY(307, "Превышено число допустимых параметров функции."),
+            ERROR_ENTRY(308, "Оператор return вне функции."),
+            ERROR_ENTRY(309, "Тип возвращаемого значения не соответствует типу функции."),
+            ERROR_ENTRY(310, "Смешение типов при присваивании."),
+            ERROR_ENTRY(311, "Слишком много аргументов для функции."),
+            ERROR_ENTRY(312, "Деление числа на 0."),
+            ERROR_ENTRY(313, "Обязателен возврат значения в функции main."),
+            
+            ERROR_ENTRY_NODEF(314), ERROR_ENTRY_NODEF(315),
+            ERROR_ENTRY_NODEF(316), ERROR_ENTRY_NODEF(317), ERROR_ENTRY_NODEF(318), ERROR_ENTRY_NODEF(319),
+            ERROR_ENTRY_NODEF10(320), ERROR_ENTRY_NODEF10(330), ERROR_ENTRY_NODEF10(340), ERROR_ENTRY_NODEF10(350),
+            ERROR_ENTRY_NODEF10(360), ERROR_ENTRY_NODEF10(370), ERROR_ENTRY_NODEF10(380), ERROR_ENTRY_NODEF10(390),
+            ERROR_ENTRY_NODEF100(400), ERROR_ENTRY_NODEF100(500),
             ERROR_ENTRY(600, "Неверная структура программы"),
             ERROR_ENTRY(601, "Ошибочный оператор"),
             ERROR_ENTRY(602, "Ошибка в выражении"),

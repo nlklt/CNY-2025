@@ -1,63 +1,49 @@
 function int arithmetic_test(int a, int b, int d) {
-	print("; 6 / 3 = ");
+	print("6 / 3 = ");
 	int c = 6 / b;
  	print(c);
-	print("; 7 / 3 = ");
+	print("7 / 3 = ");
 	c = 7 / b;
 	print(c);
-	print("; 5 / 3 * 8 = ");
+	print("5 / 3 * 8 = ");
 	c = a / b * 8;
 	print(c);
-	print("; (4 + 5) / 3 * 8 * (0 - 10) = ");
-	c = (4 + a) / b * 8 * (d - 10);
+	print("(4 + 5) / 3 * 8 * (3 - 10) = ");
+	c = (4 + a) / b * 8 * (b - 10);
 	print(c);
 
 return 0;
 }
 
-function string ret_Lstring() {
-	print("ret_Lstring");
-	return "+/- 0";
+function string ret_Pstring(string s) {
+	print("ret_Pstring");
+	return s;
 }
-function string ret_Vstring(string s) {
-	print("ret_Vstring");
-	string a = "privet";
-	return a;
+function int ret_OVint(int o) {
+	print("ret_OVint");
+	return o;
 }
-function int ret_Lint(int a) {
-	print("ret_Lint");
-	return -200;
-}
-function int ret_Vint() {
-	print("ret_Vint");
-	int n = -222;
-	return n;
-}
-function int ret_Eint1(int a, int b) {
-	print("ret_Eint1");
-	return a + b;
-}
-function int ret_Eint2(int a, int b) {
-	print("ret_Eint2");
-	return (a + b);
+function int ret_Eint(int a, int b) {
+	print("ret_Eint");
+	return a * b;
 }
 
-function string functions_test(int a, string b, string s) {
-	print(ret_Lstring());
-	
-	print(ret_Vstring("1"));
-	
-	print(ret_Lint(2));
-	
-	print(ret_Vint());
-	
-	print(ret_Eint1(11, 22));
+function int functions_test(int a, string b, string s) {
+	print(ret_Pstring(b));
+	string oldps = ret_Pstring(s);
+	print(oldps);
 
-	int n1 = -11;
-	int n2 = -22;
-	print(ret_Eint2(n1, n2));
+	print(ret_OVint(0o01)); # восемь в восьмеричной
+	
+	int n1 = -2;
+	int n2 = -3;
+	
+	print(ret_Eint(n1, n2));
+	int mul = 2;
+	mul = ret_Eint(n1, n2) * mul;
+	print(mul);
 
-	return "done";
+	return 1;
 }
 
 int main() {
@@ -68,24 +54,17 @@ int main() {
 	string time;
 	time = get_time();
 	print(time);
-	print("-----------------------");
-	print("done");
-	print("-----------------------");
 
+	print("=== Variables test ===");
+	int b = 0o3;
 	int a = 5;
-	int b = 3;
-
-	print("=== Arithmetic test ===");
-	string s = arithmetic_test(a, b, 0);
-	print("-----------------------");
-	print(s);
-	print("-----------------------");
-	print("=== Unary test ===");
-
-	a = 5;
-	b = 3;
 	print(a);
 	print(b);
+
+	print("=== Arithmetic test ===");
+	int s = arithmetic_test(a, b, 0);
+
+	print("=== Unary test ===");
 
 	print("a2 = a--;");
 	int a2 = a--;
@@ -95,21 +74,23 @@ int main() {
 	a2 = --a;
 	print(a2);
 	
+	print("a2 = a++ * 2;");
+	a2 = a++ * 2;
+	print(a2);
+	
+	print("a2 = ++a * 2;");
+	a2 = ++a * 2;
+	print(a2);
+	
 	print("b2 = ++b;");
 	int b2 = ++b;
 	print(b2);
 	
 	b2 = ~2;
-	
-	print("-----------------------");
-	print("done");
-	print("-----------------------");
+	print(b2);
 	
 	print("=== Functions test ===");
-	s = functions_test(a, "asdf", "0");
-	print("----------------------");
-	print(s);
-	print("----------------------");
+	s = functions_test(a, "asdf", "string");
 	
 	print("=== For test ===");
 	for int i = 0..5 {
@@ -120,10 +101,6 @@ int main() {
 		}
 			print("-"); 
 	}
-
-	print("-----------------------");
-	print("done");
-	print("-----------------------");
 	
 	return 0;
 }

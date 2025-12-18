@@ -11,6 +11,7 @@ extern "C"
     // Функция вывода числа
     void __cdecl write_int(int value)
     {
+        value = static_cast<int16_t>(value);
         std::cout << value << std::endl;
     }
 

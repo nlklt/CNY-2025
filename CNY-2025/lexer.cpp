@@ -46,6 +46,8 @@ namespace Lexer
         bool inFunctionHeader = false;
         bool isNegative = false;
 
+        bool mainIsWas = false;
+
         IT::IDDATATYPE lastTypeToken = IT::IDDATATYPE::UNDEF;
 
         for (int i = 0; i < in.size; ++i) {
@@ -88,7 +90,14 @@ namespace Lexer
                     else if (word == "get_date"){ sign = LT::SIGNATURE::date; }
                     else    { lastTypeToken = IT::IDDATATYPE::UNDEF; }
 
-                    if      (word == "main") { scopeStack.push_back("main"); }
+                    if      (word == "main") { 
+                        scopeStack.push_back("main"); 
+                        if (mainIsWas) {
+                            std::cout << Colors::RED << "Error: Обнаружено несколько точек входа main" << Colors::RESET << std::endl;
+                            ERROR_THROW_IN(207, line, position);
+                        }
+                        mainIsWas = true;
+                    }
                     else if (word == "for")  { scopeStack.push_back(std::to_string(scopeScp++)); }
 
                     if (kw == LT_FUNCTION) afterFunctionKeyword = true;
@@ -431,6 +440,10 @@ namespace Lexer
 
                 LT::Add(lt, symbentry_l);
             }
+        }
+        if (!mainIsWas) {
+            std::cout << Colors::RED << "Error: Не обнаружено точки входа main" << Colors::RESET << std::endl;
+            ERROR_THROW_IN(208, line, position);
         }
     }
 }

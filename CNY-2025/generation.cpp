@@ -314,6 +314,7 @@ namespace GN {
                 case LT::SIGNATURE::pref_inversion:
                     // ~x : операция над значением
                     var = idtable.table[lextable.table[i + 1].idxIT];
+                    out += "\tpush " + var.fullName + "\n";
                     out += "\tpop eax\n";
                     out += "\tnot eax\n";
                     out += "\tpush eax\n";
